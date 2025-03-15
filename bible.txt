@@ -1,0 +1,231 @@
+bible-ai/
+├── config/                      # Configuration files
+│   ├── model_config.json        # Model architecture configuration
+│   ├── training_config.json     # Training hyperparameters
+│   ├── data_config.json         # Data processing configuration
+│   ├── data_config_schema.json  # Schema for data configuration
+│   ├── theological_rules.json   # Theological validation rules
+│   ├── frontend_config.json     # Frontend configuration
+│   ├── bible_sources.json       # Bible sources configuration
+│   ├── security_config.json     # Security settings (NEW)
+│   └── logging_config.json      # Logging configuration (NEW)
+│
+├── data/                        # Data storage
+│   ├── raw/                     # Raw Bible texts, commentaries
+│   │   ├── bibles/              # Different Bible translations
+│   │   ├── commentaries/        # Biblical commentaries
+│   │   ├── qa_pairs/            # Question-answer pairs
+│   │   ├── theological/         # Theological reference data
+│   │   │   └── technical_terms.json  # Technical theological terms
+│   │   └── lexicons/            # Biblical language lexicons (NEW)
+│   │       ├── hebrew/          # Hebrew lexicon data
+│   │       └── greek/           # Greek lexicon data
+│   ├── processed/               # Processed datasets
+│   ├── uploads/                 # User-uploaded Bible texts
+│   ├── embeddings/              # Pre-computed embeddings
+│   └── snapshots/               # Model checkpoints and snapshots (NEW)
+│
+├── src/                         # Source code
+│   ├── data/                    # Data processing modules
+│   │   ├── __init__.py
+│   │   ├── preprocessing.py     # Text cleaning and normalization
+│   │   ├── tokenization.py      # Custom tokenizer for biblical content
+│   │   ├── augmentation.py      # Data augmentation techniques
+│   │   └── dataset.py           # Dataset creation and management
+│   │
+│   ├── bible_manager/           # Bible management module
+│   │   ├── __init__.py
+│   │   ├── downloader.py        # Download Bible translations
+│   │   ├── uploader.py          # Handle Bible text uploads
+│   │   ├── converter.py         # Convert between Bible formats
+│   │   └── storage.py           # Manage Bible storage
+│   │
+│   ├── lexicon/                 # Biblical language lexicon module (NEW)
+│   │   ├── __init__.py
+│   │   ├── hebrew_lexicon.py    # Hebrew word lookup
+│   │   ├── greek_lexicon.py     # Greek word lookup
+│   │   ├── concordance.py       # Word concordance generation
+│   │   └── word_study.py        # In-depth word study capability
+│   │
+│   ├── model/                   # Model architecture
+│   │   ├── __init__.py
+│   │   ├── architecture.py      # Model definition
+│   │   ├── attention.py         # Custom attention mechanisms
+│   │   ├── embeddings.py        # Token and positional embeddings
+│   │   └── verse_detector.py    # Bible verse reference detection
+│   │
+│   ├── training/                # Training components
+│   │   ├── __init__.py
+│   │   ├── trainer.py           # Training loop and logic
+│   │   ├── loss.py              # Custom loss functions
+│   │   ├── optimization.py      # Optimizers and schedulers
+│   │   ├── evaluation.py        # Evaluation metrics
+│   │   └── checkpointing.py     # Model checkpointing (NEW)
+│   │
+│   ├── theology/                # Theological validation system
+│   │   ├── __init__.py
+│   │   ├── validator.py         # Main theological validation logic
+│   │   ├── doctrines.py         # Core doctrine handling
+│   │   ├── denominational.py    # Denominational variations
+│   │   ├── controversial.py     # Controversial topics handling
+│   │   └── pastoral.py          # Pastoral sensitivity features
+│   │
+│   ├── contextual/              # Contextual understanding module (NEW)
+│   │   ├── __init__.py
+│   │   ├── historical.py        # Historical context analysis
+│   │   ├── cultural.py          # Cultural context analysis
+│   │   ├── literary.py          # Literary context analysis
+│   │   └── canonical.py         # Canonical context analysis
+│   │
+│   ├── hermeneutics/            # Biblical interpretation module (NEW)
+│   │   ├── __init__.py
+│   │   ├── principles.py        # Hermeneutical principles
+│   │   ├── methods.py           # Interpretation methods
+│   │   ├── genres.py            # Biblical genre handling
+│   │   └── application.py       # Application principles
+│   │
+│   ├── utils/                   # Utility functions
+│   │   ├── __init__.py
+│   │   ├── logger.py            # Logging functionality
+│   │   ├── verse_utils.py       # Bible verse utilities
+│   │   ├── theological_checks.py # Theological accuracy verification
+│   │   └── security.py          # Security utilities (NEW)
+│   │
+│   ├── monitoring/              # System monitoring (NEW)
+│   │   ├── __init__.py
+│   │   ├── metrics.py           # Performance metrics collection
+│   │   ├── alerting.py          # Error alerting system
+│   │   └── dashboard.py         # Monitoring dashboard
+│   │
+│   ├── serve/                   # Serving and deployment
+│   │   ├── __init__.py
+│   │   ├── api.py               # FastAPI endpoints
+│   │   ├── middleware.py        # Request/response middleware
+│   │   ├── verse_resolver.py    # Bible verse resolution service
+│   │   ├── rate_limiter.py      # API rate limiting (NEW)
+│   │   └── cache.py             # Response caching (NEW)
+│   │
+│   └── quality/                 # Quality assurance (NEW)
+│       ├── __init__.py
+│       ├── benchmarks.py        # Performance benchmarks
+│       ├── theological_eval.py  # Theological accuracy evaluation
+│       └── user_feedback.py     # User feedback processing
+│
+├── frontend/                    # Frontend application
+│   ├── public/                  # Static files
+│   │   ├── index.html           # Main HTML file
+│   │   ├── favicon.ico          # Site favicon
+│   │   └── assets/              # Images, fonts, etc.
+│   │
+│   ├── src/                     # Frontend source code
+│   │   ├── components/          # React components
+│   │   │   ├── common/          # Shared components
+│   │   │   ├── bible/           # Bible text display
+│   │   │   ├── theological/     # Theological explanation components
+│   │   │   ├── lexicon/         # Lexicon display components (NEW)
+│   │   │   ├── commentary/      # Commentary components
+│   │   │   ├── study/           # Bible study tools (NEW)
+│   │   │   ├── accessibility/   # Accessibility components (NEW)
+│   │   │   └── chat/            # AI chat interface
+│   │   │
+│   │   ├── pages/               # Page components
+│   │   ├── services/            # API services
+│   │   ├── utils/               # Utility functions
+│   │   ├── state/               # State management (NEW)
+│   │   │   ├── store.js
+│   │   │   └── slices/
+│   │   ├── i18n/                # Internationalization (NEW)
+│   │   │   ├── translations/
+│   │   │   └── config.js
+│   │   ├── theme/               # Theming system (NEW)
+│   │   ├── App.js               # Main application component
+│   │   └── index.js             # Application entry point
+│   │
+│   ├── tests/                   # Frontend tests
+│   │   ├── unit/                # Unit tests
+│   │   ├── integration/         # Integration tests (NEW)
+│   │   └── e2e/                 # End-to-end tests
+│   │
+│   ├── package.json             # Frontend dependencies
+│   └── README.md                # Frontend documentation
+│
+├── scripts/                     # Utility scripts
+│   ├── generate_dataset.py      # Generate training datasets
+│   ├── evaluate_model.py        # Run evaluation suite
+│   ├── theology_validator.py    # Run theological validation tests
+│   ├── benchmark.py             # Run performance benchmarks (NEW)
+│   ├── security_scan.py         # Run security checks (NEW)
+│   ├── data_migration.py        # Data migration between versions (NEW)
+|   └── verify_biblical_data.py
+│   
+├── tests/                       # Backend test suite
+│   ├── __init__.py
+│   ├── conftest.py              # Shared test fixtures
+│   ├── unit/                    # Unit tests by module
+│   │   ├── test_data.py
+│   │   ├── test_model.py
+│   │   ├── test_theological.py
+│   │   ├── test_theology_validator.py
+│   │   ├── test_lexicon.py      # Test lexicon functionality (NEW)
+│   │   ├── test_contextual.py   # Test contextual analysis (NEW)
+│   │   └── test_hermeneutics.py # Test hermeneutics module (NEW)
+│   ├── integration/             # Integration tests
+│   ├── performance/             # Performance tests (NEW)
+│   ├── security/                # Security tests (NEW)
+│   └── fixtures/                # Test data fixtures
+│       ├── sample_verses.json
+│       ├── sample_questions.json
+│       ├── theological_cases.json
+│       └── lexicon_entries.json # Sample lexicon entries (NEW)
+│
+├── notebooks/                   # Jupyter notebooks for exploration
+│   ├── data_exploration.ipynb
+│   ├── model_analysis.ipynb
+│   ├── theological_analysis.ipynb
+│   ├── lexicon_analysis.ipynb   # Lexicon analysis notebook (NEW)
+│   ├── contextual_analysis.ipynb # Contextual analysis notebook (NEW)
+│   └── error_analysis.ipynb
+│
+├── deploy/                      # Deployment tools
+│   ├── install_guide.md         # Step-by-step installation instructions
+│   ├── requirements_prod.txt    # Production dependencies only
+│   ├── setup_local.py           # Script to set up local environment
+│   ├── wsgi.py                  # WSGI entry point for production servers
+│   ├── nginx/                   # Nginx configuration (NEW)
+│   │   └── bible_ai.conf
+│   ├── monitoring/              # Deployment monitoring (NEW)
+│   │   ├── prometheus.yml
+│   │   └── grafana_dashboards/
+│   └── ssl/                     # SSL configuration (NEW)
+│       ├── setup_ssl.sh
+│       └── renewal.sh
+│
+├── docs/                        # Documentation (NEW)
+│   ├── api/                     # API documentation
+│   ├── user_guide/              # User documentation
+│   │   ├── getting_started.md
+│   │   ├── bible_study.md
+│   │   └── theological_features.md
+│   ├── developer_guide/         # Developer documentation
+│   │   ├── architecture.md
+│   │   ├── extending_model.md
+│   │   └── contributing.md
+│   ├── theological_basis.md     # Theological foundation document
+│   └── images/                  # Documentation images
+│
+├── .github/                     # GitHub integration (NEW)
+│   ├── workflows/               # GitHub Actions
+│   │   ├── tests.yml
+│   │   ├── lint.yml
+│   │   └── deploy.yml
+│   ├── ISSUE_TEMPLATE/
+│   └── PULL_REQUEST_TEMPLATE.md
+│
+├── cli.py                       # Command-line interface
+├── app.py                       # Main application entry point
+├── requirements.txt             # Development dependencies
+├── setup.py                     # Package installation
+├── CHANGELOG.md                 # Version history (NEW)
+├── CONTRIBUTING.md              # Contribution guidelines (NEW)
+├── LICENSE                      # Project license (NEW)
+└── README.md                    # Project documentation

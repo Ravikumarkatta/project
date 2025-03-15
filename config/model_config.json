@@ -1,0 +1,64 @@
+{
+  "model_type": "transformer",
+  "model_name": "bible-transformer-base",
+  "model_version": "1.0.0",
+  "architecture": {
+    "vocab_size": 50000,
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "num_attention_heads": 12,
+    "intermediate_size": 3072,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "attention_probs_dropout_prob": 0.1,
+    "max_position_embeddings": 512,
+    "type_vocab_size": 2,
+    "initializer_range": 0.02,
+    "layer_norm_eps": 1e-12
+  },
+  "task_specific_heads": {
+    "question_answering": {
+      "enabled": true,
+      "dropout_rate": 0.1,
+      "max_answer_length": 100
+    },
+    "verse_detection": {
+      "enabled": true,
+      "num_classes": 2,
+      "dropout_rate": 0.1
+    },
+    "theological_classification": {
+      "enabled": true,
+      "num_categories": 10,
+      "dropout_rate": 0.1
+    }
+  },
+  "positional_encoding": "learned",
+  "use_token_type_embeddings": true,
+  "use_verse_embeddings": true,
+  "verse_embedding_dim": 64,
+  "use_theological_embeddings": true,
+  "theological_embedding_dim": 32,
+  "special_tokens": {
+    "pad_token": "[PAD]",
+    "unk_token": "[UNK]",
+    "cls_token": "[CLS]",
+    "sep_token": "[SEP]",
+    "mask_token": "[MASK]",
+    "verse_token": "[VERSE]",
+    "theological_token": "[THEO]",
+    "commentary_token": "[COMMENTARY]",
+    "question_token": "[QUESTION]",
+    "answer_token": "[ANSWER]"
+  },
+  "pretrained_weights": {
+    "use_pretrained": true,
+    "source": "bert-base-uncased",
+    "freeze_layers": [0, 1, 2, 3]
+  },
+  "initialization": {
+    "method": "normal",
+    "mean": 0.0,
+    "std": 0.02
+  }
+}

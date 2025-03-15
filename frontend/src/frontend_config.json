@@ -1,0 +1,18 @@
+{
+    "api": {
+        "base_url": "http://localhost:5000",  
+        "endpoints": {
+            "list_bibles": "/bibles",         
+            "get_bible": "/bibles/{version}"  
+        }
+    },
+    "app": {
+        "title": "Bible AI",
+        "description": "A platform for exploring Bible translations, theological insights, and more."
+    },
+    "features": {
+        "enable_search": true,               
+        "enable_qa": true,                  
+        "enable_commentaries": true         
+    }
+}

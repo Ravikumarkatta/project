@@ -1,0 +1,101 @@
+{
+  "training": {
+    "batch_size": 32,
+    "accumulation_steps": 2,
+    "max_epochs": 30,
+    "early_stopping": {
+      "enabled": true,
+      "metric": "validation_loss",
+      "patience": 3,
+      "min_delta": 0.001
+    },
+    "warmup": {
+      "enabled": true,
+      "warmup_steps": 1000,
+      "warmup_ratio": 0.1
+    },
+    "checkpoint": {
+      "save_best_only": true,
+      "save_every_n_steps": 1000,
+      "max_to_keep": 5
+    },
+    "mixed_precision": true,
+    "seed": 42,
+    "max_grad_norm": 1.0
+  },
+  "optimizer": {
+    "name": "adamw",
+    "learning_rate": 5e-5,
+    "weight_decay": 0.01,
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "epsilon": 1e-8,
+    "scheduler": {
+      "type": "linear_with_warmup",
+      "min_lr": 1e-7
+    }
+  },
+  "loss": {
+    "main_loss": "cross_entropy",
+    "auxiliary_losses": {
+      "verse_detection": {
+        "loss_type": "cross_entropy",
+        "weight": 0.3
+      },
+      "theological_accuracy": {
+        "loss_type": "kl_divergence",
+        "weight": 0.5
+      }
+    }
+  },
+  "evaluation": {
+    "eval_steps": 500,
+    "metrics": [
+      "accuracy",
+      "precision",
+      "recall",
+      "f1",
+      "theological_accuracy",
+      "verse_reference_accuracy",
+      "scripture_consistency"
+    ],
+    "main_metric": "theological_accuracy",
+    "validation_split": 0.1,
+    "early_stopping_metric": "validation_loss"
+  },
+  "curriculum_learning": {
+    "enabled": true,
+    "difficulty_metric": "theological_complexity",
+    "stages": [
+      {
+        "epochs": 5,
+        "difficulty_threshold": 0.3
+      },
+      {
+        "epochs": 10,
+        "difficulty_threshold": 0.6
+      },
+      {
+        "epochs": 15,
+        "difficulty_threshold": 1.0
+      }
+    ]
+  },
+  "distributed_training": {
+    "enabled": true,
+    "strategy": "mirrored",
+    "nodes": 1,
+    "gpus_per_node": 8,
+    "sync_batch_norm": true
+  },
+  "logging": {
+    "log_every_n_steps": 100,
+    "tensorboard": true,
+    "wandb": {
+      "enabled": true,
+      "project": "bible-ai",
+      "entity": "theological-ai-lab",
+      "tags": ["transformer", "bible", "theology"]
+    }
+  }
+}
