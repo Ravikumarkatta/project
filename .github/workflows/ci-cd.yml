@@ -23,6 +23,7 @@ jobs:
 
     - name: Install required system dependencies
       run: |
+        sudo apt-get update && sudo apt-get install -y build-essential libffi-dev libssl-dev
         python -m pip install --upgrade pip setuptools wheel cython numpy
         python -m pip install --upgrade --pre torch torchvision torchaudio -f https://download.pytorch.org/whl/cpu.html
 
@@ -33,5 +34,5 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Run Tests
-      run: pytest
+      run: pytest tests/
 
