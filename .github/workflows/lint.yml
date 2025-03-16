@@ -10,23 +10,34 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.12'  # Updated to Python 3.12
+        python-version: '3.12'
+        cache: 'pip'
+        cache-dependency-path: requirements.txt
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 black isort
+        pip install flake8 black isort mypy
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
     - name: Lint with flake8
       run: |
         flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
     - name: Check formatting with black
       run: |
         black --check src/ tests/
+        
     - name: Check import sorting with isort
       run: |
         isort --check-only --profile black src/ tests/
+        
+    - name: Check type hints with mypy
+      run: |
+        mypy src/ --ignore-missing-imports
