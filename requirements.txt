@@ -26,9 +26,6 @@ lxml>=4.9.0           # Updated to ensure proper compatibility with Python 3.12
 PyYAML>=6.0.0
 jsonschema>=4.17.0     # Bumped to pick up latest bug fixes and support
 
-# Biblical resources
-pygreek>=1.0.0
-pyhebrew>=1.0.0
 
 # Text processing
 regex>=2022.3.15       # Updated for Python 3.12 optimizations
