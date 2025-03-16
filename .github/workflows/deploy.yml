@@ -32,6 +32,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
       - name: Generate Deployment Configuration
         run: python deploy/generate_config.py --environment production
 
