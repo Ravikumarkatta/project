@@ -31,7 +31,7 @@ Bible-AI is a comprehensive artificial intelligence platform designed to assist 
 
 1. Clone the repository:
 bash
-git clone https://github.com/yourusername/bible-ai.git
+git clone https://github.com/ravikumarkatta/bible-ai.git
 cd bible-ai
 
 
