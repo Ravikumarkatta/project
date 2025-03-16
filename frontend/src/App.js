@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { listBibles, getBible } from './api';
 
+/**
+ * App component to display available Bibles and their content.
+ */
 function App() {
     const [bibles, setBibles] = useState([]);
     const [selectedBible, setSelectedBible] = useState(null);
     const [content, setContent] = useState('');
 
+    // Fetch available Bibles on component mount
     useEffect(() => {
         async function fetchBibles() {
             try {
@@ -18,6 +22,7 @@ function App() {
         fetchBibles();
     }, []);
 
+    // Handle click event to fetch and display selected Bible content
     const handleBibleClick = async (version) => {
         try {
             const data = await getBible(version);
