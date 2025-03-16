@@ -30,7 +30,7 @@ jobs:
     - name: Install PyTorch first
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        python -m pip install --upgrade torch==2.0.1 -f https://download.pytorch.org/whl/cpu.html
+        python -m pip install --upgrade torch==2.6.0 -f https://download.pytorch.org/whl/cpu.html
     
     - name: Install SpaCy separately
       run: python -m pip install spacy==3.8.2 --no-build-isolation
