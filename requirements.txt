@@ -27,7 +27,6 @@ PyYAML>=6.0.0
 jsonschema>=4.17.0     # Bumped to pick up latest bug fixes and support
 
 # Biblical resources
-bible-corpus>=1.0.0
 pygreek>=1.0.0
 pyhebrew>=1.0.0
 
