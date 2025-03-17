@@ -441,3 +441,239 @@ class TheologicalChecker:
         positions = self.denominational_positions[denomination]
         
         # Check distinctive positions
+    def check_denominational_sensitivity(self, 
+                                   content: str, 
+                                   denomination: str) -> Dict[str, Any]:
+    """
+    Check if content is sensitive to denominational distinctives.
+    
+    Args:
+        content: Text content to check
+        denomination: Denomination name
+        
+    Returns:
+        Dictionary with check results
+    """
+    results = {
+        "passed": True,
+        "denomination": denomination,
+        "warnings": []
+    }
+    
+    # Get denominational positions
+    if denomination not in self.denominational_positions:
+        logger.warning(f"No position data for denomination: {denomination}")
+        results["warnings"].append(f"Unknown denomination: {denomination}")
+        return results
+    
+    positions = self.denominational_positions[denomination]
+    
+    # Check distinctive positions
+    for position_name, position_data in positions.get("distinctives", {}).items():
+        # Check if position is explicitly contradicted
+        contradictions = position_data.get("contradictions", [])
+        for contradiction in contradictions:
+            if contradiction.lower() in content.lower():
+                results["passed"] = False
+                results["warnings"].append(
+                    f"Content contradicts {denomination} position on {position_name}: "
+                    f"Contains '{contradiction}'"
+                )
+                
+        # Check if position requires specific affirmations
+        affirmations = position_data.get("affirmations", [])
+        if affirmations and position_data.get("requires_affirmation", False):
+            affirmed = False
+            for affirmation in affirmations:
+                if affirmation.lower() in content.lower():
+                    affirmed = True
+                    break
+                    
+            if not affirmed:
+                results["passed"] = False
+                results["warnings"].append(
+                    f"Content lacks affirmation of {denomination} position on {position_name}"
+                )
+    
+    # Check for problematic language about this denomination
+    sensitive_terms = positions.get("sensitive_terms", [])
+    for term in sensitive_terms:
+        if term.lower() in content.lower():
+            context = self._extract_keyword_context(content, term)
+            results["passed"] = False
+            results["warnings"].append(
+                f"Content contains potentially insensitive language about {denomination}: "
+                f"'{term}' in context '{context}'"
+            )
+    
+    # Log results
+    if results["passed"]:
+        logger.info(f"Denominational sensitivity check passed for {denomination}")
+    else:
+        logger.warning(f"Denominational sensitivity check failed for {denomination}")
+        
+    return results
+
+def check_hermeneutical_approach(self, 
+                              content: str, 
+                              approach: str = "historical-grammatical") -> Dict[str, Any]:
+    """
+    Check if content follows sound hermeneutical principles.
+    
+    Args:
+        content: Text content to check
+        approach: Hermeneutical approach to apply
+        
+    Returns:
+        Dictionary with check results
+    """
+    results = {
+        "passed": True,
+        "approach": approach,
+        "warnings": []
+    }
+    
+    # Basic checks for common hermeneutical issues
+    
+    # Check for context consideration
+    if len(content) > 200:  # Only check substantial content
+        context_terms = ["context", "surrounding", "passage", "chapter", "verses"]
+        has_context = any(term in content.lower() for term in context_terms)
+        
+        if not has_context:
+            results["warnings"].append(
+                "Content may not adequately consider scriptural context"
+            )
+    
+    # Check for historical-cultural consideration
+    if approach == "historical-grammatical":
+        historical_terms = ["historical", "cultural", "ancient", "original", "audience"]
+        has_historical = any(term in content.lower() for term in historical_terms)
+        
+        if not has_historical and len(content) > 300:  # Only check substantial content
+            results["warnings"].append(
+                "Content may not adequately consider historical-cultural context"
+            )
+    
+    # Check for isolated verse interpretation without broader context
+    verse_refs = self._extract_verse_references(content)
+    if len(verse_refs) == 1 and len(content) > 300:
+        # Look for references to surrounding context
+        context_indicators = re.findall(r'(preceding|following|context|chapter|book)', content, re.IGNORECASE)
+        if not context_indicators:
+            results["warnings"].append(
+                "Content may be interpreting a single verse in isolation"
+            )
+    
+    # Check for overly spiritualized interpretation
+    spiritualized_patterns = [
+        r'hidden meaning',
+        r'secret code',
+        r'mystical interpretation',
+        r'allegorical meaning'
+    ]
+    
+    for pattern in spiritualized_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            results["warnings"].append(
+                f"Content may contain overly spiritualized interpretation: '{pattern}'"
+            )
+    
+    # Determine if warnings should cause failure
+    if len(results["warnings"]) > 2:  # More than 2 warnings is a failure
+        results["passed"] = False
+        
+    # Log results
+    if results["passed"]:
+        logger.info(f"Hermeneutical approach check passed for {approach}")
+    else:
+        logger.warning(f"Hermeneutical approach check failed for {approach}")
+        
+    return results
+
+def generate_theological_report(self, content: str, denomination: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Generate a comprehensive theological report for content.
+    
+    Args:
+        content: Text content to analyze
+        denomination: Optional denomination to consider
+        
+    Returns:
+        Dictionary with theological analysis results
+    """
+    report = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "content_length": len(content),
+        "denomination": denomination,
+        "overall_passed": True,
+        "essential_doctrine": {
+            "passed": True,
+            "issues": []
+        },
+        "hermeneutics": {
+            "passed": True,
+            "issues": []
+        },
+        "denominational_sensitivity": {
+            "passed": True,
+            "issues": []
+        },
+        "recommendations": []
+    }
+    
+    # Check essential doctrines
+    for doctrine in self.essential_doctrines:
+        if doctrine in self.doctrines:
+            doctrine_result = self.check_doctrinal_accuracy(content, doctrine)
+            if not doctrine_result["passed"]:
+                report["essential_doctrine"]["passed"] = False
+                report["overall_passed"] = False
+                
+                for error in doctrine_result.get("errors", []):
+                    report["essential_doctrine"]["issues"].append({
+                        "doctrine": doctrine,
+                        "issue": error
+                    })
+    
+    # Check hermeneutical approach
+    hermeneutics_result = self.check_hermeneutical_approach(content)
+    if not hermeneutics_result["passed"]:
+        report["hermeneutics"]["passed"] = False
+        report["overall_passed"] = False
+        
+        for warning in hermeneutics_result.get("warnings", []):
+            report["hermeneutics"]["issues"].append({
+                "issue": warning
+            })
+    
+    # Check denominational sensitivity if denomination provided
+    if denomination:
+        sensitivity_result = self.check_denominational_sensitivity(content, denomination)
+        if not sensitivity_result["passed"]:
+            report["denominational_sensitivity"]["passed"] = False
+            report["overall_passed"] = False
+            
+            for warning in sensitivity_result.get("warnings", []):
+                report["denominational_sensitivity"]["issues"].append({
+                    "issue": warning
+                })
+    
+    # Generate recommendations based on issues
+    if not report["overall_passed"]:
+        if not report["essential_doctrine"]["passed"]:
+            report["recommendations"].append(
+                "Review content for accuracy on essential Christian doctrines"
+            )
+        
+        if not report["hermeneutics"]["passed"]:
+            report["recommendations"].append(
+                "Improve hermeneutical approach with better contextual consideration"
+            )
+        
+        if not report["denominational_sensitivity"]["passed"]:
+            report["recommendations"].append(
+                f"Revise content to be more sensitive to {denomination} distinctives"
+            )
+    
+    return report
