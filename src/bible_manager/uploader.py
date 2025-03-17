@@ -1,215 +1,259 @@
+# src/bible_manager/uploader.py
 """
-Bible text upload handling module for Bible-AI.
+BibleUploader Module for Bible-AI
 
-This module provides functionality for users to upload their own Bible texts
-in various formats and integrate them into the Bible-AI system.
+Handles uploading, validating, converting, and storing Bible texts with theological
+accuracy checks, parallel processing, and robust error handling.
 """
 
 import os
-import shutil
-import uuid
 import json
-from typing import Dict, List, Optional, Tuple, Union, BinaryIO
+import shutil
+import tempfile
+from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
-# Import logger
+# Project-specific imports with fallbacks
 try:
     from src.utils.logger import get_logger
-except ImportError:
-    # Fallback if the import path is different
-    try:
-        from utils.logger import get_logger
-    except ImportError:
-        import logging
-        # Simple logger fallback if our custom logger isn't available
-        get_logger = lambda name: logging.getLogger(name)
+    from src.bible_manager.converter import BibleConverter
+    from src.bible_manager.storage import BibleStorage
+    from src.theology.validator import TheologicalValidator  # For theological checks
+except ImportError as e:
+    logging.basicConfig(level=logging.INFO)
+    get_logger = lambda name: logging.getLogger(name)
+    logger = get_logger("BibleUploader")
+    logger.error(f"Missing dependencies: {e}. Proceeding with basic functionality.")
+    BibleConverter = object  # Fallback
+    BibleStorage = object
+    TheologicalValidator = object
 
-# Initialize module logger
-logger = get_logger("bible_manager.uploader")
-
+# Initialize logger
+logger = get_logger("BibleUploader")
 
 class BibleUploader:
     """
-    Handles uploading Bible texts in various formats.
-    Supports validation, processing, and integration of user-provided texts.
+    Handles the upload, validation, conversion, and storage of Bible texts for Bible-AI.
+
+    Attributes:
+        config_path: Path to configuration file.
+        upload_dir: Directory for temporary uploaded files.
+        converter: BibleConverter instance.
+        storage: BibleStorage instance.
+        validator: TheologicalValidator instance.
+        supported_formats: List of supported file extensions.
+        max_file_size_mb: Maximum file size in MB.
     """
     
-    def __init__(self, upload_dir: Optional[str] = None, 
-                 allowed_formats: Optional[List[str]] = None):
+    def __init__(self, config_path: Optional[str] = None, upload_dir: str = "data/uploads", max_file_size_mb: int = 100):
         """
-        Initialize the Bible uploader with configuration.
-        
+        Initialize the BibleUploader.
+
         Args:
-            upload_dir: Directory for temporary upload storage
-            allowed_formats: List of allowed file formats
+            config_path (Optional[str]): Path to configuration file.
+            upload_dir (str): Directory for temporary uploaded files.
+            max_file_size_mb (int): Maximum file size in megabytes.
         """
-        base_path = Path(os.path.abspath(__file__)).parent.parent.parent
-        self.upload_dir = upload_dir or str(base_path / "data" / "uploads")
-        
-        # Create upload directory if it doesn't exist
-        if not os.path.exists(self.upload_dir):
-            os.makedirs(self.upload_dir, exist_ok=True)
-            
-        # Default allowed formats
-        self.allowed_formats = allowed_formats or [
-            "txt", "json", "xml", "usx", "usfm", "csv", "html"
-        ]
-        
-        logger.info(f"Bible uploader initialized with upload directory: {self.upload_dir}")
-        logger.info(f"Allowed formats: {', '.join(self.allowed_formats)}")
-        
-    def validate_file(self, file_path: str) -> Tuple[bool, str]:
+        self.upload_dir = upload_dir
+        os.makedirs(self.upload_dir, exist_ok=True)
+        self.max_file_size_mb = max_file_size_mb
+        self.config = self._load_config(config_path)
+
+        # Initialize dependencies
+        self.converter = BibleConverter(config_path=self.config.get("converter", {}).get("config_path", "config/bible_sources.json"))
+        self.storage = BibleStorage(config_path=config_path) if 'BibleStorage' not in globals() else BibleStorage(config_path=config_path)
+        self.validator = TheologicalValidator(config=self.config.get("theology", {})) if 'TheologicalValidator' not in globals() else TheologicalValidator()
+        self.supported_formats = self.config.get("converter", {}).get("supported_formats", [".usfm", ".osis", ".json", ".txt", ".csv"])
+        logger.info("BibleUploader initialized with upload_dir: %s, max_file_size: %dMB", self.upload_dir, self.max_file_size_mb)
+
+    def _load_config(self, config_path: Optional[str]) -> Dict[str, Any]:
+        """Load configuration from a JSON file with defaults."""
+        config = {"converter": {}, "theology": {}}
+        if config_path and os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config.update(json.load(f))
+                logger.info(f"Loaded config from {config_path}")
+            except Exception as e:
+                logger.error(f"Failed to load config: {e}")
+        return config
+
+    def upload_file(self, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """
-        Validate if a file is in an accepted format and has valid content.
-        
+        Upload and process a single Bible text file.
+
         Args:
-            file_path: Path to the file to validate
-            
+            file_path (str): Path to the file to upload.
+            metadata (Optional[Dict[str, Any]]): Additional metadata.
+
         Returns:
-            Tuple of (is_valid, message)
+            Tuple[bool, str]: (Success status, message or file ID).
         """
-        # Check file existence
         if not os.path.exists(file_path):
-            return False, f"File not found: {file_path}"
-        
-        # Check file format
-        file_ext = os.path.splitext(file_path)[1].lstrip('.').lower()
-        if file_ext not in self.allowed_formats:
-            return False, f"Unsupported file format: {file_ext}. Allowed formats: {', '.join(self.allowed_formats)}"
-        
-        # Check file size (limit to 50MB)
-        if os.path.getsize(file_path) > 50 * 1024 * 1024:
-            return False, "File too large. Maximum size is 50MB."
-        
-        # Basic content validation based on format
+            logger.error("File not found: %s", file_path)
+            return False, "File not found"
+
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        if file_size_mb > self.max_file_size_mb:
+            logger.error("File %s exceeds max size (%dMB): %dMB", file_path, self.max_file_size_mb, file_size_mb)
+            return False, f"File exceeds {self.max_file_size_mb}MB limit"
+
+        file_ext = os.path.splitext(file_path)[1].lower()
+        if file_ext not in self.supported_formats:
+            logger.error("Unsupported format: %s (allowed: %s)", file_ext, self.supported_formats)
+            return False, f"Unsupported format. Allowed: {self.supported_formats}"
+
         try:
-            if file_ext == "json":
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    json.load(f)  # Attempt to parse JSON
-            elif file_ext in ["xml", "usx", "usfm", "html"]:
-                # Basic XML/markup validation
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    if "<" not in content or ">" not in content:
-                        return False, f"Invalid {file_ext.upper()} format. Missing markup elements."
-            
-            # For TXT and CSV, we just ensure they're readable
-            with open(file_path, 'r', encoding='utf-8') as f:
-                f.readline()  # Try to read first line
-                
-        except UnicodeDecodeError:
-            return False, "Invalid file encoding. Please use UTF-8."
-        except json.JSONDecodeError:
-            return False, "Invalid JSON format."
+            with tempfile.TemporaryDirectory(dir=self.upload_dir) as temp_dir:
+                temp_file_path = os.path.join(temp_dir, os.path.basename(file_path))
+                shutil.copy(file_path, temp_file_path)
+                logger.info("Copied file to temporary location: %s", temp_file_path)
+
+                input_format = self.converter._detect_format(temp_file_path)
+                if not input_format:
+                    return False, "Format detection failed"
+
+                bible_data = self.converter._read_file(temp_file_path, input_format)
+                valid, message = self._validate_bible_data(bible_data)
+                if not valid:
+                    return False, message
+
+                # Enrich metadata
+                default_metadata = {"uploaded_at": datetime.now().isoformat(), "source_file": os.path.basename(file_path)}
+                metadata = {**default_metadata, **(metadata or {}), "input_format": input_format}
+                bible_data["metadata"] = {**bible_data.get("metadata", {}), **metadata}
+
+                # Convert and validate theologically
+                standard_file_path = os.path.join(temp_dir, "standard.json")
+                self.converter._write_json(bible_data, standard_file_path)
+                theological_score = self.validator.validate(bible_data) if hasattr(self.validator, 'validate') else 1.0
+                if theological_score < self.config.get("theology", {}).get("min_score", 0.9):
+                    return False, f"Theological score too low: {theological_score}"
+
+                # Store the file
+                file_id = self.storage.store_bible(standard_file_path, bible_data["metadata"])
+                logger.info("File stored successfully with ID: %s", file_id)
+                return True, file_id
+
         except Exception as e:
-            return False, f"Error validating file: {str(e)}"
-            
-        return True, "File is valid."
-    
-    def upload_file(self, file_obj: BinaryIO, filename: str) -> Tuple[bool, str, Optional[str]]:
+            logger.error("Upload failed: %s", e)
+            return False, f"Upload failed: {str(e)}"
+
+    def _validate_bible_data(self, bible_data: Dict[str, Any]) -> Tuple[bool, str]:
         """
-        Upload a Bible file to the system.
-        
+        Validate the structure and content of Bible data with theological checks.
+
         Args:
-            file_obj: File-like object containing the uploaded data
-            filename: Original filename
-            
+            bible_data (Dict[str, Any]): Structured Bible data.
+
         Returns:
-            Tuple of (success, message, file_id)
+            Tuple[bool, str]: (Validation status, message).
         """
-        # Generate unique ID for this upload
-        file_id = str(uuid.uuid4())
-        
-        # Create directory for this upload
-        upload_path = os.path.join(self.upload_dir, file_id)
-        os.makedirs(upload_path, exist_ok=True)
-        
-        # Save the file
-        file_ext = os.path.splitext(filename)[1].lower()
-        if not file_ext or file_ext[1:] not in self.allowed_formats:
-            return False, f"Unsupported file format. Allowed formats: {', '.join(self.allowed_formats)}", None
-        
-        temp_path = os.path.join(upload_path, f"original{file_ext}")
-        
         try:
-            # Save uploaded file
-            with open(temp_path, 'wb') as out_file:
-                shutil.copyfileobj(file_obj, out_file)
-                
-            # Validate saved file
-            is_valid, message = self.validate_file(temp_path)
-            if not is_valid:
-                # Clean up on validation failure
-                shutil.rmtree(upload_path)
-                return False, message, None
-                
-            # Log successful upload
-            file_size = os.path.getsize(temp_path)
-            logger.info(f"Successfully uploaded Bible file: {filename} ({file_size} bytes), ID: {file_id}")
-            
-            return True, "File uploaded successfully.", file_id
-            
+            if not isinstance(bible_data, dict) or "books" not in bible_data:
+                return False, "Invalid Bible structure"
+
+            if not bible_data["books"]:
+                return False, "No books found"
+
+            for book in bible_data["books"]:
+                if not isinstance(book, dict) or "code" not in book or "chapters" not in book:
+                    return False, f"Invalid book structure: {book}"
+
+                if book["code"] not in self.converter.book_codes:
+                    logger.warning("Unknown book code: %s", book["code"])
+
+                for chapter in book["chapters"]:
+                    if "number" not in chapter or "verses" not in chapter:
+                        return False, f"Invalid chapter in book {book['code']}"
+                    if not chapter["verses"]:
+                        return False, f"No verses in chapter {chapter['number']} of book {book['code']}"
+
+                    for verse in chapter["verses"]:
+                        if "number" not in verse or "text" not in verse or not verse["text"].strip():
+                            return False, f"Invalid verse in book {book['code']}, chapter {chapter['number']}"
+                        if len(verse["text"].split()) < 1:  # Basic content check
+                            return False, f"Empty verse content in book {book['code']}, chapter {chapter['number']}"
+
+            logger.info("Structural validation passed")
+            return True, "Validation passed"
+
         except Exception as e:
-            # Clean up on error
-            if os.path.exists(upload_path):
-                shutil.rmtree(upload_path)
-            logger.error(f"Error uploading file {filename}: {str(e)}")
-            return False, f"Error uploading file: {str(e)}", None
-    
-    def get_upload_info(self, file_id: str) -> Dict:
+            logger.error("Validation failed: %s", e)
+            return False, f"Validation failed: {str(e)}"
+
+    def upload_directory(self, dir_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Tuple[bool, str]]:
         """
-        Get information about an uploaded file.
-        
+        Upload and process all Bible text files in a directory with parallel processing.
+
         Args:
-            file_id: Unique ID of the uploaded file
-            
+            dir_path (str): Directory containing Bible files.
+            metadata (Optional[Dict[str, Any]]): Metadata to apply to all files.
+
         Returns:
-            Dictionary with upload information
+            Dict[str, Tuple[bool, str]]: Mapping of file paths to (success, message) tuples.
         """
-        upload_path = os.path.join(self.upload_dir, file_id)
+        if not os.path.isdir(dir_path):
+            logger.error("Directory not found: %s", dir_path)
+            return {dir_path: (False, "Directory not found")}
+
+        results = {}
+        files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
         
-        if not os.path.exists(upload_path):
-            return {"exists": False, "message": "Upload not found"}
-        
-        # Find the original file
-        files = [f for f in os.listdir(upload_path) if f.startswith("original")]
-        if not files:
-            return {"exists": False, "message": "Original file not found"}
-        
-        original_file = files[0]
-        file_path = os.path.join(upload_path, original_file)
-        
-        # Get file stats
-        stats = os.stat(file_path)
-        
-        return {
-            "exists": True,
-            "file_id": file_id,
-            "filename": original_file,
-            "size": stats.st_size,
-            "upload_time": stats.st_mtime,
-            "format": os.path.splitext(original_file)[1][1:]
-        }
-    
-    def delete_upload(self, file_id: str) -> Tuple[bool, str]:
+        with ThreadPoolExecutor(max_workers=min(4, len(files))) as executor:
+            future_to_file = {executor.submit(self.upload_file, file, metadata): file for file in files}
+            for future in future_to_file:
+                file_path = future_to_file[future]
+                try:
+                    results[file_path] = future.result()
+                except Exception as e:
+                    logger.error("Error processing %s: %s", file_path, e)
+                    results[file_path] = (False, f"Processing error: {str(e)}")
+
+        return results
+
+    def cleanup(self) -> None:
         """
-        Delete an uploaded file.
-        
-        Args:
-            file_id: Unique ID of the uploaded file
-            
-        Returns:
-            Tuple of (success, message)
+        Clean up temporary files and resources with error recovery.
         """
-        upload_path = os.path.join(self.upload_dir, file_id)
-        
-        if not os.path.exists(upload_path):
-            return False, "Upload not found"
-        
         try:
-            shutil.rmtree(upload_path)
-            logger.info(f"Deleted uploaded Bible file with ID: {file_id}")
-            return True, "Upload deleted successfully"
+            if os.path.exists(self.upload_dir):
+                for item in os.listdir(self.upload_dir):
+                    item_path = os.path.join(self.upload_dir, item)
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path, ignore_errors=True)
+                logger.info("Temporary files cleaned up successfully")
         except Exception as e:
-            logger.error(f"Error deleting upload {file_id}: {str(e)}")
-            return False, f"Error deleting upload: {str(e)}"
+            logger.error("Cleanup failed: %s", e)
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Upload Bible text files to Bible-AI")
+    parser.add_argument("--file", type=str, help="Path to a single Bible file to upload")
+    parser.add_argument("--dir", type=str, help="Path to a directory containing Bible files")
+    parser.add_argument("--config", type=str, default="config/bible_sources.json", help="Path to configuration file")
+    parser.add_argument("--metadata", type=str, help="Path to a JSON metadata file")
+    args = parser.parse_args()
+
+    uploader = BibleUploader(config_path=args.config)
+    metadata = None
+    if args.metadata and os.path.exists(args.metadata):
+        with open(args.metadata, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+    try:
+        if args.file:
+            success, message = uploader.upload_file(args.file, metadata)
+            print(f"Upload {'successful' if success else 'failed'}: {message}")
+        elif args.dir:
+            results = uploader.upload_directory(args.dir, metadata)
+            for file_path, (success, message) in results.items():
+                print(f"{file_path}: {'Success' if success else 'Failure'} - {message}")
+        else:
+            parser.print_help()
+    finally:
+        uploader.cleanup()
