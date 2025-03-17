@@ -243,7 +243,10 @@ class Trainer:
             'scheduler_state_dict': self.scheduler.state_dict(),
         }, checkpoint_path)
         self.logger.info(f"Saved checkpoint at {checkpoint_path}")
-
+    def validate(self):
+    results = evaluate_model(
+        self.model, self.val_loader, self.config, self.device, epoch=epoch)
+    return results["loss"], results["theological_alignment"]
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Train a BiblicalTransformer model")
