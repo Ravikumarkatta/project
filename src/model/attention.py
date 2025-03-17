@@ -175,4 +175,4 @@ class BiblicalSelfAttention(MultiHeadAttention):
         return super().forward(
             hidden_states, hidden_states, hidden_states,
             attention_mask, output_attentions, verse_positions
-        )q
+        )
