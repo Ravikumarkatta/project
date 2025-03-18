@@ -3,10 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple
+from torch.utils.checkpoint import checkpoint
 
 from src.model.attention import MultiHeadAttention
 from src.model.embeddings import TokenEmbeddings, PositionalEncoding
-from src.model.verse_detector import VerseReferenceDetector
+from src.model.verse_detector import VerseDetector
+from src.theology.validator import TheologicalValidator
 
 
 class BiblicalTransformerConfig:
@@ -60,6 +62,7 @@ class BiblicalTransformerLayer(nn.Module):
     def __init__(self, config: BiblicalTransformerConfig):
         super().__init__()
         self.config = config
+        self.validator = TheologicalValidator({"min_score": 0.9, "theological_terms": ["God", "Jesus", "Holy Spirit","jesus christ","messiah","christ"]})
         
         # Self-attention mechanism
         self.attention = MultiHeadAttention(
@@ -95,28 +98,37 @@ class BiblicalTransformerLayer(nn.Module):
         verse_references: Optional[torch.Tensor] = None,
         output_attentions: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        # Self-attention block
-        residual = hidden_states
-        hidden_states = self.layer_norm1(hidden_states)
-        attention_output, attention_weights = self.attention(
-            hidden_states, hidden_states, hidden_states, attention_mask, output_attentions
+        # Define a helper function for the attention block
+        def attention_block(hs, mask, verse_refs):
+        residual = hs
+        hs = self.layer_norm1(hs)
+        attn_output, attn_weights = self.attention(
+            hs, hs, hs, mask, output_attentions, verse_references=verse_refs
         )
-        hidden_states = residual + attention_output
+        return residual + attn_output, attn_weights
         
-        # Feed-forward block
-        residual = hidden_states
-        hidden_states = self.layer_norm2(hidden_states)
-        feed_forward_output = self.feed_forward(hidden_states)
-        hidden_states = residual + feed_forward_output
-        
-        # Integrate theological context if provided
-        if theological_context is not None:
-            context_gate = self.theological_context_gate(hidden_states)
-            hidden_states = hidden_states * (1 - context_gate) + theological_context * context_gate
-        
-        if output_attentions:
-            return hidden_states, attention_weights
-        return hidden_states, None
+        # Use checkpointing for the attention block
+    attention_output, attention_weights = checkpoint(
+        attention_block,
+        hidden_states,
+        attention_mask,
+        verse_references,
+        use_reentrant=False
+    )
+    # Integrate theological context if provided
+    if theological_context is not None:
+        context_gate = self.theological_context_gate(hidden_states)
+        hidden_states = hidden_states * (1 - context_gate) + theological_context * context_gate
+
+    if output_attentions:
+        return hidden_states, attention_weights
+    return hidden_states, None
+
+    # Feed-forward block
+    residual = attention_output
+    hidden_states = self.layer_norm2(attention_output)
+    feed_forward_output = self.feed_forward(hidden_states)
+    hidden_states = residual + feed_forward_output
 
 
 class BiblicalTransformer(nn.Module):
@@ -142,7 +154,10 @@ class BiblicalTransformer(nn.Module):
         )
         
         # Special embeddings for biblical content
-        self.verse_reference_detector = VerseReferenceDetector(config.num_bible_books)
+        self.verse_reference_detector = VerseDetector(
+            hidden_dim=config.hidden_size,
+            num_verse_types=config.num_bible_books
+        )
         self.verse_embedding = nn.Embedding(config.num_bible_books * 200, config.verse_embedding_size)  # Approximating verses per book
         self.verse_projection = nn.Linear(config.verse_embedding_size, config.hidden_size)
         
@@ -187,9 +202,11 @@ class BiblicalTransformer(nn.Module):
     
     def get_verse_embeddings(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Extract and embed Bible verse references from input tokens."""
-        verse_indices = self.verse_reference_detector(input_ids)
-        verse_embeds = self.verse_embedding(verse_indices)
-        return self.verse_projection(verse_embeds)
+         # Use VerseDetector to get verse features
+    verse_output = self.verse_reference_detector(hidden_states=input_ids.unsqueeze(-1))
+    verse_indices = verse_output['verse_logits'].argmax(dim=-1)  # Simplified: use logits to get indices
+    verse_embeds = self.verse_embedding(verse_indices)
+    return self.verse_projection(verse_embeds)
     
     def get_theological_context(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """Extract theological context from current hidden states."""
@@ -278,3 +295,23 @@ class BiblicalTransformer(nn.Module):
             "hidden_states": all_hidden_states,
             "attentions": all_attentions,
         }
+    # Validate outputs
+    validated_outputs = {}
+    if labels is not None:
+        # Decode logits to text for validation
+        predicted_ids = lm_logits.argmax(dim=-1)
+        predicted_text = self.tokenizer.detokenize(predicted_ids)  # Assume tokenizer has detokenize method
+        validation_score = self.validator.validate({"text": predicted_text})
+        validated_outputs["validation_score"] = validation_score
+
+    # Update output dictionary
+    output_dict = {
+        "loss": loss,
+        "logits": lm_logits,
+        "verse_logits": verse_logits,
+        "theological_logits": theological_logits,
+        "hidden_states": all_hidden_states,
+        "attentions": all_attentions,
+    }
+    output_dict.update(validated_outputs)
+    return output_dict

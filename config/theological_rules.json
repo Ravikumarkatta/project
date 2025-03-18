@@ -1,0 +1,65 @@
+{
+    "validator_version": "1.0",
+    "minimum_score": 0.9,
+    "core_terms": {
+      "required": [
+        "God",
+        "Jesus",
+        "Holy Spirit"
+      ],
+      "forbidden": [
+        "heresy",
+        "blasphemy"
+      ],
+      "context_sensitive": {
+        "love": {
+          "positive_contexts": ["God", "neighbor", "faith"],
+          "negative_contexts": ["sin", "hate"]
+        },
+        "judgment": {
+          "positive_contexts": ["righteousness", "justice"],
+          "negative_contexts": ["condemnation", "wrath"]
+        }
+      }
+    },
+    "doctrinal_checks": {
+      "trinity": {
+        "description": "Ensure affirmation of the Trinity",
+        "required_phrases": ["Father, Son, and Holy Spirit"],
+        "forbidden_phrases": ["unitarian", "modalism"]
+      },
+      "salvation": {
+        "description": "Ensure salvation through Jesus alone",
+        "required_phrases": ["faith in Christ", "grace"],
+        "forbidden_phrases": ["works alone", "self-salvation"]
+      }
+    },
+    "denominational_variations": {
+      "baptism": {
+        "default": "believer's baptism",
+        "variations": {
+          "catholic": "infant baptism",
+          "orthodox": "chrismation"
+        }
+      },
+      "eucharist": {
+        "default": "Lord's Supper",
+        "variations": {
+          "catholic": "transubstantiation",
+          "protestant": "symbolic"
+        }
+      }
+    },
+    "pastoral_sensitivity": {
+      "topics": {
+        "grief": {
+          "encouraged_phrases": ["hope", "comfort", "peace"],
+          "avoid_phrases": ["despair", "hopeless"]
+        },
+        "sin": {
+          "encouraged_phrases": ["repentance", "forgiveness"],
+          "avoid_phrases": ["shame", "guilt"]
+        }
+      }
+    }
+  }

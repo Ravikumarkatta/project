@@ -1,29 +1,30 @@
-# Dockerfile
-
-# Use Python 3.12 slim image for a smaller footprint
-FROM python:3.12-slim
-
-# Install system dependencies (adjust as needed for your project)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# project/Dockerfile
+# Use an official Python runtime as the base image
+FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy only requirements first to leverage Docker cache
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Upgrade pip and install dependencies
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the code
+# Copy the project files
 COPY . .
 
-# Expose the port the app runs on (adjust if needed)
-EXPOSE 8000
+# Expose ports for monitoring services
+EXPOSE 8000  
+EXPOSE 8050  
 
-# Command to run the application (adjust if your entry point is different)
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Command to run the application (will be overridden in docker-compose.yml)
+CMD ["python", "src/data/pipeline.py"]

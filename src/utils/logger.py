@@ -11,7 +11,12 @@ import sys
 import time
 import json
 from datetime import datetime
-from typing import Optional, Union, Dict, Any, List
+from typing import Optional, Union, Dict, Any, Lis
+import logging.config
+with open("config/logging_config.json") as f:
+    logging_config = json.load(f)
+logging.config.dictConfig(logging_config)
+logger = logging.getLogger("trainer")
 
 # Default log format
 DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

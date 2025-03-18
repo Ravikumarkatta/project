@@ -1,0 +1,78 @@
+# project/docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=docker
+      - DB_PASSWORD=docker
+      - DB_NAME=bible
+    command: python src/data/pipeline.py
+    networks:
+      - bibleai-network
+
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=bible
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - bible_ai-network
+
+  metrics:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    command: python src/monitoring/metrics.py
+    networks:
+      - bibleai-network
+
+  dashboard:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8050:8050"
+    depends_on:
+      - metrics
+    command: python src/monitoring/dashboard.py
+    networks:
+      - bibleai-network
+
+  alerting:
+    build: .
+    volumes:
+      - .:/app
+    depends_on:
+      - metrics
+    environment:
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=587
+      - SMTP_USER=your-email@example.com
+      - SMTP_PASSWORD=your-password
+      - SMTP_TO_EMAIL=alert-recipient@example.com
+      - SLACK_WEBHOOK=https://hooks.slack.com/services/your/webhook/url
+    command: python src/monitoring/alerting.py
+    networks:
+      - bibleai-network
+
+networks:
+  bibleai-network:
+    driver: bridge
+
+volumes:
+  db-data:

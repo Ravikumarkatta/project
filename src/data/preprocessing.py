@@ -2,12 +2,23 @@
 import re
 import unicodedata
 import json
+from jsonschema import validate
+with open("config/data_config_schema.json") as f:
+    schema = json.load(f)
+with open("config/data_config.json") as f:
+    config = json.load(f)
+validate(instance=config, schema=schema)
 import os
 from typing import Dict, List, Any, Tuple
 import logging
 from bs4 import BeautifulSoup
 import pandas as pd
-
+import psycopg2
+from psycopg2 import sql
+import torch
+from torch.utils.data import Dataset, DataLoader
+from transformers import PreTrainedTokenizer
+from typing import Dict, List, Tuple
 logger = logging.getLogger(__name__)
 
 class BiblicalTextPreprocessor:
@@ -457,10 +468,7 @@ class BiblicalTextPreprocessor:
 # The following code integrates tokenizer-based data preparation for training.
 # It provides a dataset class for instruction fine-tuning and a helper to create DataLoaders.
 
-import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import PreTrainedTokenizer
-from typing import Dict, List, Tuple
+
 
 class BibleInstructionDataset(Dataset):
     """Dataset for instruction fine-tuning with biblical data."""
@@ -568,6 +576,39 @@ def create_dataloaders(
     )
     
     return train_loader, val_loader
+def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
+    """
+    Load processed datasets and return as BiblicalDataset instances.
+    
+    Args:
+        data_path: Path to the directory containing processed data files.
+        
+    Returns:
+        Tuple (train_dataset, val_dataset) as BiblicalDataset instances.
+    """
+    data_dir = os.path.abspath(data_path)
+    train_file = os.path.join(data_dir, 'train.pt')
+    val_file = os.path.join(data_dir, 'val.pt')
+
+    if not os.path.exists(train_file) or not os.path.exists(val_file):
+        raise FileNotFoundError(f"Processed data files not found in {data_dir}")
+
+    train_data = torch.load(train_file)
+    val_data = torch.load(val_file)
+
+    train_dataset = BiblicalDataset(
+        input_ids=train_data['input_ids'],
+        labels=train_data['labels'],
+        attention_mask=train_data['attention_mask']
+    )
+    val_dataset = BiblicalDataset(
+        input_ids=val_data['input_ids'],
+        labels=val_data['labels'],
+        attention_mask=val_data['attention_mask']
+    )
+
+    return train_dataset, val_dataset
+
 
 
 class BiblicalDataset(Dataset):
@@ -596,15 +637,14 @@ class BiblicalDataset(Dataset):
             'attention_mask': self.attention_mask[idx]
         }
         def generate_instruction_data(self, verse_aligned_df: pd.DataFrame) -> List[Dict[str, str]]:
-    """
-    Generate instruction data for fine-tuning from verse-aligned dataset.
-    
+    """Generate instruction data for fine-tuning from verse-aligned dataset.
+        
     Args:
         verse_aligned_df: DataFrame from create_verse_aligned_dataset.
         
     Returns:
         List of instruction examples: [{"instruction": ..., "input": ..., "output": ...}]
-    """
+     """
     instructions = []
     translation_cols = [col for col in verse_aligned_df.columns if col.startswith("text_")]
     commentary_cols = [col for col in verse_aligned_df.columns if col.startswith("commentary_")]
@@ -640,38 +680,6 @@ class BiblicalDataset(Dataset):
     logger.info(f"Generated {len(instructions)} instruction examples at {output_path}")
     return instructions
 
-def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
-    """
-    Load processed datasets and return as BiblicalDataset instances.
-    
-    Args:
-        data_path: Path to the directory containing processed data files.
-        
-    Returns:
-        Tuple (train_dataset, val_dataset) as BiblicalDataset instances.
-    """
-    data_dir = os.path.abspath(data_path)
-    train_file = os.path.join(data_dir, 'train.pt')
-    val_file = os.path.join(data_dir, 'val.pt')
-
-    if not os.path.exists(train_file) or not os.path.exists(val_file):
-        raise FileNotFoundError(f"Processed data files not found in {data_dir}")
-
-    train_data = torch.load(train_file)
-    val_data = torch.load(val_file)
-
-    train_dataset = BiblicalDataset(
-        input_ids=train_data['input_ids'],
-        labels=train_data['labels'],
-        attention_mask=train_data['attention_mask']
-    )
-    val_dataset = BiblicalDataset(
-        input_ids=val_data['input_ids'],
-        labels=val_data['labels'],
-        attention_mask=val_data['attention_mask']
-    )
-
-    return train_dataset, val_dataset
 
 # ===================== End of Added Code =====================
 
@@ -703,3 +711,58 @@ if __name__ == "__main__":
     # Create verse-aligned dataset and instruction data
     verse_aligned_df = preprocessor.create_verse_aligned_dataset(bibles, commentaries)
     instruction_data = preprocessor.generate_instruction_data(verse_aligned_df)
+
+#Update preprocessing.py to Use PostgreSQL
+# In src/data/preprocessing.py
+import psycopg2
+from psycopg2 import sql
+
+def save_processed_bible_to_db(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
+    """Save processed Bible data to PostgreSQL database."""
+    try:
+        conn = psycopg2.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=os.getenv("DB_PORT", 5432),
+            user=os.getenv("DB_USER", "docker"),
+            password=os.getenv("DB_PASSWORD", "docker"),
+            database=os.getenv("DB_NAME", "bible")
+        )
+        cursor = conn.cursor()
+
+        # Create table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bible_verses (
+                id SERIAL PRIMARY KEY,
+                translation VARCHAR(10),
+                book VARCHAR(50),
+                chapter INTEGER,
+                verse INTEGER,
+                text TEXT,
+                UNIQUE (translation, book, chapter, verse)
+            );
+        """)
+
+        # Insert data
+        for book, chapters in bible_data.items():
+            for chapter, verses in chapters.items():
+                for verse, text in verses.items():
+                    cursor.execute(
+                        sql.SQL("""
+                            INSERT INTO bible_verses (translation, book, chapter, verse, text)
+                            VALUES (%s, %s, %s, %s, %s)
+                            ON CONFLICT (translation, book, chapter, verse)
+                            DO UPDATE SET text = EXCLUDED.text;
+                        """),
+                        [translation, book, chapter, verse, text]
+                    )
+
+        conn.commit()
+        logger.info(f"Saved processed Bible data for {translation} to PostgreSQL database")
+    except Exception as e:
+        logger.error(f"Error saving to database: {e}")
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

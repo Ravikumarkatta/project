@@ -1,0 +1,49 @@
+{
+    "logging_version": "1.0",
+    "default_level": "INFO",
+    "loggers": {
+      "trainer": {
+        "level": "INFO",
+        "handlers": ["file", "console"],
+        "file_path": "logs/training.log"
+      },
+      "preprocessor": {
+        "level": "DEBUG",
+        "handlers": ["file"],
+        "file_path": "logs/preprocessing.log"
+      },
+      "api": {
+        "level": "INFO",
+        "handlers": ["file", "console"],
+        "file_path": "logs/api.log"
+      },
+      "security": {
+        "level": "INFO",
+        "handlers": ["file"],
+        "file_path": "logs/security.log"
+      },
+      "monitoring": {
+        "level": "INFO",
+        "handlers": ["file"],
+        "file_path": "logs/monitoring.log"
+      }
+    },
+    "formatters": {
+      "standard": {
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S"
+      }
+    },
+    "handlers": {
+      "file": {
+        "type": "file",
+        "formatter": "standard",
+        "max_bytes": 10485760,
+        "backup_count": 5
+      },
+      "console": {
+        "type": "console",
+        "formatter": "standard"
+      }
+    }
+  }

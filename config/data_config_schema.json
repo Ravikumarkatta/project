@@ -1,0 +1,100 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Data Configuration Schema",
+    "description": "Schema for validating data processing configuration in Bible-AI",
+    "type": "object",
+    "properties": {
+      "raw_dir": {
+        "type": "string",
+        "description": "Directory containing raw Bible texts and commentaries",
+        "default": "data/raw"
+      },
+      "processed_dir": {
+        "type": "string",
+        "description": "Directory for processed datasets",
+        "default": "data/processed"
+      },
+      "uploads_dir": {
+        "type": "string",
+        "description": "Directory for user-uploaded Bible texts",
+        "default": "data/uploads"
+      },
+      "embeddings_dir": {
+        "type": "string",
+        "description": "Directory for pre-computed embeddings",
+        "default": "data/embeddings"
+      },
+      "snapshots_dir": {
+        "type": "string",
+        "description": "Directory for model checkpoints and snapshots",
+        "default": "data/snapshots"
+      },
+      "preprocessing": {
+        "type": "object",
+        "description": "Preprocessing settings",
+        "properties": {
+          "remove_punctuation": {
+            "type": "boolean",
+            "description": "Whether to remove punctuation from text",
+            "default": false
+          },
+          "normalize_case": {
+            "type": "boolean",
+            "description": "Whether to normalize text to lowercase",
+            "default": true
+          },
+          "strip_html": {
+            "type": "boolean",
+            "description": "Whether to strip HTML tags from text",
+            "default": true
+          }
+        },
+        "required": ["remove_punctuation", "normalize_case", "strip_html"]
+      },
+      "tokenization": {
+        "type": "object",
+        "description": "Tokenization settings",
+        "properties": {
+          "max_length": {
+            "type": "integer",
+            "description": "Maximum sequence length for tokenization",
+            "minimum": 128,
+            "default": 512
+          },
+          "special_tokens": {
+            "type": "array",
+            "description": "List of special tokens for BiblicalTokenizer",
+            "items": {"type": "string"},
+            "default": ["[CLS]", "[SEP]", "[PAD]", "[UNK]"]
+          }
+        },
+        "required": ["max_length"]
+      },
+      "augmentation": {
+        "type": "object",
+        "description": "Data augmentation settings",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether to enable data augmentation",
+            "default": true
+          },
+          "intensity": {
+            "type": "number",
+            "description": "Augmentation intensity (0 to 1)",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.2
+          },
+          "max_augmentations": {
+            "type": "integer",
+            "description": "Maximum number of augmentations per sample",
+            "minimum": 1,
+            "default": 3
+          }
+        },
+        "required": ["enabled", "intensity", "max_augmentations"]
+      }
+    },
+    "required": ["raw_dir", "processed_dir", "uploads_dir", "embeddings_dir", "snapshots_dir", "preprocessing", "tokenization", "augmentation"]
+  }

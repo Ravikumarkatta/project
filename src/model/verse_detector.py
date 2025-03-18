@@ -86,6 +86,15 @@ class VerseDetector(nn.Module):
         # Self-attention for verse detection
         # Transpose for attention: [seq_len, batch_size, hidden_dim]
         hidden_states_t = hidden_states.transpose(0, 1)
+        # Simulate sparse attention by masking low-attention tokens
+        # Simplified: only attend to nearby tokens (±5 positions)
+        seq_len = hidden_states_t.size(0)
+        sparse_mask = torch.ones((seq_len, seq_len), device=hidden_states.device, dtype=torch.bool)
+        for i in range(seq_len):
+        start = max(0, i - 5)
+        end = min(seq_len, i + 6)
+        sparse_mask[i, start:end] = 0
+        sparse_mask = sparse_mask.bool()
         
         # Apply self-attention
         attn_output, _ = self.verse_attention(
@@ -93,6 +102,7 @@ class VerseDetector(nn.Module):
             key=hidden_states_t,
             value=hidden_states_t,
             key_padding_mask=key_padding_mask
+            attn_mask=sparse_mask
         )
         
         # Transpose back: [batch_size, seq_len, hidden_dim]

@@ -1,18 +1,50 @@
 {
+    "frontend_version": "1.0",
     "api": {
-        "base_url": "http://localhost:5000",  
-        "endpoints": {
-            "list_bibles": "/bibles",         
-            "get_bible": "/bibles/{version}"  
-        }
+      "base_url": "http://localhost:8000/api",
+      "endpoints": {
+        "verse": "/verse",
+        "commentary": "/commentary",
+        "qa": "/qa",
+        "lexicon": "/lexicon",
+        "chat": "/chat"
+      },
+      "timeout": 5000,
+      "retry_attempts": 3,
+      "cache_ttl": 3600
     },
-    "app": {
-        "title": "Bible AI",
-        "description": "A platform for exploring Bible translations, theological insights, and more."
+    "theme": {
+      "primary_color": "#2c3e50",
+      "secondary_color": "#3498db",
+      "font_family": "Roboto, sans-serif",
+      "dark_mode": true
     },
-    "features": {
-        "enable_search": true,               
-        "enable_qa": true,                  
-        "enable_commentaries": true         
+    "i18n": {
+      "default_language": "en",
+      "supported_languages": ["en", "es", "fr", "he", "gr"],
+      "translations_dir": "src/i18n/translations"
+    },
+    "components": {
+      "bible": {
+        "default_translation": "KJV",
+        "verse_display_limit": 10
+      },
+      "lexicon": {
+        "default_language": "hebrew",
+        "max_entries": 5
+      },
+      "chat": {
+        "max_message_length": 500,
+        "response_delay": 1000
+      }
+    },
+    "accessibility": {
+      "high_contrast": false,
+      "screen_reader_support": true,
+      "font_size_adjustment": true
+    },
+    "state": {
+      "persist_keys": ["theme", "language", "user_preferences"],
+      "store_type": "redux"
     }
-}
+  }
