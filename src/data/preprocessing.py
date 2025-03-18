@@ -549,37 +549,26 @@ def create_dataloaders(
     batch_size: int = 4,
     max_length: int = 512
 ) -> Tuple[DataLoader, DataLoader]:
-    """
-    Create train and validation DataLoaders.
+    from src.data.utils import collate_fn  # Import the new utility
     
-    Args:
-        train_path: Path to training data JSON file.
-        val_path: Path to validation data JSON file.
-        tokenizer: HuggingFace tokenizer.
-        batch_size: Batch size for training.
-        max_length: Maximum sequence length.
-        
-    Returns:
-        Tuple of (train_dataloader, val_dataloader)
-    """
-    # Create datasets
     train_dataset = BibleInstructionDataset(train_path, tokenizer, max_length)
     val_dataset = BibleInstructionDataset(val_path, tokenizer, max_length)
     
-    # Create data loaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True
+        shuffle=True,
+        collate_fn=collate_fn
     )
-    
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
-        shuffle=False
+        shuffle=False,
+        collate_fn=collate_fn
     )
     
     return train_loader, val_loader
+
 
 class BiblicalDataset(Dataset):
     """Custom Dataset for biblical data."""
