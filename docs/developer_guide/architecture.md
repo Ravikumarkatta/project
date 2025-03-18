@@ -139,3 +139,9 @@ Developers can extend Bible-AI by:
 4. Expanding frontend components in `/frontend/src/components/`
 
 See `extending_model.md` for detailed implementation guides.
+### Tokenization
+The `tokenization.py` module handles custom tokenization for biblical texts:
+```python
+from src.data.tokenization import BiblicalTokenizer
+tokenizer = BiblicalTokenizer()
+encoding = tokenizer.tokenize("John 3:16 For God so loved the world.")
