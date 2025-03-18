@@ -606,6 +606,50 @@ class BiblicalDataset(Dataset):
             'labels': self.labels[idx],
             'attention_mask': self.attention_mask[idx]
         }
+        def generate_instruction_data(self, verse_aligned_df: pd.DataFrame) -> List[Dict[str, str]]:
+    """
+    Generate instruction data for fine-tuning from verse-aligned dataset.
+    
+    Args:
+        verse_aligned_df: DataFrame from create_verse_aligned_dataset.
+        
+    Returns:
+        List of instruction examples: [{"instruction": ..., "input": ..., "output": ...}]
+    """
+    instructions = []
+    translation_cols = [col for col in verse_aligned_df.columns if col.startswith("text_")]
+    commentary_cols = [col for col in verse_aligned_df.columns if col.startswith("commentary_")]
+    
+    for _, row in verse_aligned_df.iterrows():
+        reference = row["reference"]
+        # Instruction 1: Explain the verse
+        for trans_col in translation_cols:
+            verse_text = row[trans_col]
+            if not verse_text:
+                continue
+            for comm_col in commentary_cols:
+                commentary = row[comm_col]
+                if commentary:
+                    instructions.append({
+                        "instruction": "Explain the verse.",
+                        "input": f"{reference} ({trans_col.replace('text_', '')})",
+                        "output": commentary
+                    })
+        
+        # Instruction 2: Paraphrase the verse
+        if len(translation_cols) > 1:
+            trans1, trans2 = random.sample(translation_cols, 2)
+            instructions.append({
+                "instruction": "Paraphrase the verse.",
+                "input": f"{reference} ({trans1.replace('text_', '')})",
+                "output": row[trans2]
+            })
+    
+    output_path = os.path.join(self.processed_dir, "instruction_data.json")
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(instructions, f, indent=2)
+    logger.info(f"Generated {len(instructions)} instruction examples at {output_path}")
+    return instructions
 
 def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
     """
@@ -643,10 +687,10 @@ def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
 # ===================== End of Added Code =====================
 
 # Example usage
-if __name__ == '__main__':
+if __name__ == "__main__":
     preprocessor = BiblicalTextPreprocessor('config/data_config.json')
     
-    # Process Bibles
+    # Process Bibles and commentaries (existing code)
     bibles = {}
     bibles_dir = os.path.join(preprocessor.raw_dir, 'bibles')
     for bible_file in os.listdir(bibles_dir):
@@ -657,7 +701,6 @@ if __name__ == '__main__':
             bibles[translation] = bible_data
             preprocessor.save_processed_bible(bible_data, translation)
     
-    # Process commentaries
     commentaries = {}
     commentaries_dir = os.path.join(preprocessor.raw_dir, 'commentaries')
     for commentary_file in os.listdir(commentaries_dir):
@@ -668,5 +711,6 @@ if __name__ == '__main__':
             commentaries[source] = entries
             preprocessor.save_processed_commentaries(entries, source)
     
-    # Create verse-aligned dataset
-    preprocessor.create_verse_aligned_dataset(bibles, commentaries)
+    # Create verse-aligned dataset and instruction data
+    verse_aligned_df = preprocessor.create_verse_aligned_dataset(bibles, commentaries)
+    instruction_data = preprocessor.generate_instruction_data(verse_aligned_df)
