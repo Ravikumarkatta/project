@@ -7,7 +7,7 @@ starlette==0.39.0  # Matches FastAPI, assumed minor bump
 pydantic==2.10.0  # Latest Pydantic 2.x, assumed update for 3.12
 
 # Machine Learning and Model Training (src/model/, src/training/)
-torch  # Latest PyTorch, assumed release by early 2025, 3.12 compatible
+torch==2.6.0 # Latest PyTorch, assumed release by early 2025, 3.12 compatible
 torchvision==0.20.0  # Matches torch, assumed update
 transformers==4.46.0  # Latest Hugging Face transformers, assumed update
 numpy==1.26.4  # Latest NumPy, minor update assumed for 3.12
