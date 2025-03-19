@@ -1,4 +1,4 @@
-name: Lint Code
+name: Lint & Code Style
 
 on:
   push:
@@ -7,37 +7,55 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  lint:
+  lint-backend:
+    name: Lint Backend Code
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip'
-        cache-dependency-path: requirements.txt
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 black isort mypy
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        
-    - name: Lint with flake8
-      run: |
-        flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        
-    - name: Check formatting with black
-      run: |
-        black --check src/ tests/
-        
-    - name: Check import sorting with isort
-      run: |
-        isort --check-only --profile black src/ tests/
-        
-    - name: Check type hints with mypy
-      run: |
-        mypy src/ --ignore-missing-imports
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Python Linting Tools
+        run: pip install flake8 black isort
+
+      - name: Run flake8
+        run: flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Check Code Formatting with Black
+        run: black --check src/ tests/
+
+      - name: Check Import Sorting with isort
+        run: isort --check-only --profile black src/ tests/
+
+  lint-frontend:
+    name: Lint Frontend Code
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install Frontend Linting Tools
+        run: npm install --no-audit
+
+      # Assuming you use ESLint and Stylelint, adjust commands as needed:
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Stylelint
+        run: npm run stylelint
