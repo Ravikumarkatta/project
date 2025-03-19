@@ -1,17 +1,50 @@
-name: CI/CD Pipeline
+name: Full CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  lint:
+    name: Lint Backend & Frontend
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Python Linting Tools
+        run: pip install flake8 black isort
+
+      - name: Run Backend Linting
+        run: |
+          flake8 src/ tests/ --count --show-source --statistics
+          black --check src/ tests/
+          isort --check-only --profile black src/ tests/
+
+      - name: Set up Node.js 18 for Frontend Linting
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: npm
+
+      - name: Install Frontend Dependencies for Linting
+        run: cd frontend && npm ci
+
+      - name: Run Frontend Linting
+        run: cd frontend && npm run lint
+
+  backend-tests:
+    name: Run Backend Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -24,25 +57,105 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev python3-venv
 
-      - name: Install Python Build Tools
-        run: |
-          python -m pip install --upgrade pip setuptools wheel cython
+      - name: Upgrade Python Build Tools
+        run: python -m pip install --upgrade pip setuptools wheel cython
 
       - name: Install SpaCy Separately
-        run: python -m pip install spacy==3.8.2 --no-build-isolation
+        run: pip install --no-cache-dir spacy==3.8.2 --no-build-isolation
 
       - name: Install Project Dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
 
-      - name: Run Backend Tests
-        run: pytest --cov=src/ --cov-report=xml
+      - name: Run Backend Tests with Coverage
+        run: pytest --cov=src/ --cov-report=xml --disable-warnings
 
-      - name: Upload Backend Test Coverage Report
+      - name: Upload Backend Coverage Report
         uses: actions/upload-artifact@v3
         with:
           name: backend-coverage-report
           path: coverage.xml
-          
+
+  frontend-tests:
+    name: Run Frontend Tests & Build
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Run Frontend Tests with Coverage
+        run: npm test -- --coverage
+
+      - name: Build Frontend
+        run: npm run build
+
+      - name: Upload Frontend Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: build
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Backend Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/bible-ai-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Download Frontend Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/build
+
+      - name: Generate Deployment Configuration
+        run: python deploy/generate_config.py --environment production
+
+      - name: Deploy to Production Server
+        uses: fjogeleit/http-webhook-action@v1
+        with:
+          url: ${{ secrets.DEPLOYMENT_WEBHOOK_URL }}
+          json: |
+            {
+              "app": "bible-ai",
+              "version": "${{ github.sha }}",
+              "environment": "production",
+              "triggered_by": "${{ github.actor }}"
+            }
