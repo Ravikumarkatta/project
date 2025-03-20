@@ -6,7 +6,7 @@ Welcome to Bible-AI! This guide will help you get up and running with our intell
 
 ### Prerequisites
 Before installing Bible-AI, ensure you have:
-- Python 3.11 or higher
+- Python 3.12 or higher
 - Node.js 18 or higher
 - Minimum 8GB of RAM (16GB recommended)
 - (Optional) GPU for faster inference
