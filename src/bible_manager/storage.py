@@ -23,8 +23,7 @@ except ImportError:
 # Initialize logger
 logger = get_logger("bible_storage")
 
-class BibleStorage:
-    """
+"""
     Manages the storage and retrieval of Bible texts in the Bible-AI system.
 
     Attributes:
@@ -33,43 +32,28 @@ class BibleStorage:
         index: Metadata index mapping file IDs to metadata.
         config: Configuration dictionary.
     """
-    
+
+# src/bible_manager/storage.py (corrected)
+class BibleStorage:
     def __init__(self, config_path: Optional[str] = None, storage_dir: str = "data/bible_storage"):
-        """
-        Initialize the BibleStorage.
-
-        Args:
-            config_path: Optional path to configuration file.
-            storage_dir: Directory to store Bible files.
-        """
-        self.storage_dir = storage_dir
-        self.index_file = os.path.join(self.storage_dir, "index.json")
-        os.makedirs(self.storage_dir, exist_ok=True)
-
-        # Load configuration
+        self.storage_dir = Path(storage_dir)  # Use Path
+        self.index_file = self.storage_dir / "index.json"
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.config = {}
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     self.config = json.load(f)
-                logger.info(f"Loaded storage configuration from {config_path}")
+                logger.info(f"Loaded storage config from {config_path}")
             except Exception as e:
-                logger.error(f"Failed to load configuration: {e}")
-
-        # Initialize metadata index
+                logger.error(f"Failed to load config: {e}")
         self.index = self._load_index()
-        logger.info("BibleStorage initialized with storage_dir: %s", self.storage_dir)
+        logger.info(f"BibleStorage initialized with storage_dir: {self.storage_dir}")
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Load the metadata index from the index file.
-
-        Returns:
-            Dict: Metadata index mapping file IDs to metadata.
-        """
         try:
-            if os.path.exists(self.index_file):
-                with open(self.index_file, 'r', encoding='utf-8') as f:
+            if self.index_file.exists():
+                with self.index_file.open('r', encoding='utf-8') as f:
                     return json.load(f)
             return {}
         except Exception as e:
@@ -77,55 +61,26 @@ class BibleStorage:
             return {}
 
     def _save_index(self) -> None:
-        """
-        Save the metadata index to the index file.
-        """
         try:
-            with open(self.index_file, 'w', encoding='utf-8') as f:
+            with self.index_file.open('w', encoding='utf-8') as f:
                 json.dump(self.index, f, indent=2)
-            logger.debug("Index saved to %s", self.index_file)
+            logger.debug(f"Index saved to {self.index_file}")
         except Exception as e:
             logger.error(f"Failed to save index: {e}")
             raise
 
-    def store_bible(self, file_path: str, metadata: Dict[str, Any]) -> str:
-        """
-        Store a processed Bible file and its metadata.
-
-        Args:
-            file_path: Path to the processed Bible file (JSON format).
-            metadata: Metadata associated with the Bible file.
-
-        Returns:
-            str: Unique file ID for the stored Bible.
-        """
+    def store_bible(self, bible_data: Dict[str, Any], metadata: Dict[str, Any]) -> str:
+        file_id = str(uuid.uuid4())
+        file_path = self.storage_dir / f"{file_id}.json"
         try:
-            # Generate a unique file ID
-            file_id = str(uuid.uuid4())
-            storage_path = os.path.join(self.storage_dir, f"{file_id}.json")
-
-            # Load the Bible data
-            with open(file_path, 'r', encoding='utf-8') as f:
-                bible_data = json.load(f)
-
-            # Update metadata with file_id
-            metadata["file_id"] = file_id
-            bible_data["metadata"] = {**bible_data.get("metadata", {}), **metadata}
-
-            # Store the Bible data
-            with open(storage_path, 'w', encoding='utf-8') as f:
+            with file_path.open('w', encoding='utf-8') as f:
                 json.dump(bible_data, f, indent=2)
-            logger.info("Stored Bible text at %s", storage_path)
-
-            # Update the index
             self.index[file_id] = metadata
             self._save_index()
-            logger.info("Updated index with file_id: %s", file_id)
-
+            logger.info(f"Stored Bible with ID {file_id}")
             return file_id
-
         except Exception as e:
-            logger.error("Failed to store Bible file: %s", e)
+            logger.error(f"Storage failed: {str(e)}")
             raise
 
     def retrieve_bible(self, file_id: str) -> Optional[Dict[str, Any]]:

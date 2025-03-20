@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import json
 from src.utils.logger import get_logger
+from typing import Optional, Union, Dict, Any, List
 
 logger = get_logger("DenominationalAdjuster")
 

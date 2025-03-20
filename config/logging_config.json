@@ -1,49 +1,105 @@
 {
-    "logging_version": "1.0",
-    "default_level": "INFO",
-    "loggers": {
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+      "standard": {
+          "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+          "datefmt": "%Y-%m-%d %H:%M:%S"
+      }
+  },
+  "handlers": {
+      "console": {
+          "class": "logging.StreamHandler",
+          "level": "INFO",
+          "formatter": "standard",
+          "stream": "ext://sys.stdout"
+      },
+      "trainer_file": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "level": "INFO",
+          "formatter": "standard",
+          "filename": "logs/training.log",
+          "maxBytes": 10485760,
+          "backupCount": 5
+      },
+      "preprocessor_file": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "level": "DEBUG",
+          "formatter": "standard",
+          "filename": "logs/preprocessing.log",
+          "maxBytes": 10485760,
+          "backupCount": 5
+      },
+      "api_file": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "level": "INFO",
+          "formatter": "standard",
+          "filename": "logs/api.log",
+          "maxBytes": 10485760,
+          "backupCount": 5
+      },
+      "security_file": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "level": "INFO",
+          "formatter": "standard",
+          "filename": "logs/security.log",
+          "maxBytes": 10485760,
+          "backupCount": 5
+      },
+      "monitoring_file": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "level": "INFO",
+          "formatter": "standard",
+          "filename": "logs/monitoring.log",
+          "maxBytes": 10485760,
+          "backupCount": 5
+      }
+  },
+  "loggers": {
       "trainer": {
-        "level": "INFO",
-        "handlers": ["file", "console"],
-        "file_path": "logs/training.log"
+          "level": "INFO",
+          "handlers": ["trainer_file", "console"],
+          "propagate": false
       },
       "preprocessor": {
-        "level": "DEBUG",
-        "handlers": ["file"],
-        "file_path": "logs/preprocessing.log"
+          "level": "DEBUG",
+          "handlers": ["preprocessor_file"],
+          "propagate": false
       },
       "api": {
-        "level": "INFO",
-        "handlers": ["file", "console"],
-        "file_path": "logs/api.log"
+          "level": "INFO",
+          "handlers": ["api_file", "console"],
+          "propagate": false
       },
       "security": {
-        "level": "INFO",
-        "handlers": ["file"],
-        "file_path": "logs/security.log"
+          "level": "INFO",
+          "handlers": ["security_file"],
+          "propagate": false
       },
       "monitoring": {
-        "level": "INFO",
-        "handlers": ["file"],
-        "file_path": "logs/monitoring.log"
-      }
-    },
-    "formatters": {
-      "standard": {
-        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        "datefmt": "%Y-%m-%d %H:%M:%S"
-      }
-    },
-    "handlers": {
-      "file": {
-        "type": "file",
-        "formatter": "standard",
-        "max_bytes": 10485760,
-        "backup_count": 5
+          "level": "INFO",
+          "handlers": ["monitoring_file"],
+          "propagate": false
       },
-      "console": {
-        "type": "console",
-        "formatter": "standard"
+      "bible_manager.downloader": {
+          "level": "INFO",
+          "handlers": ["console"],
+          "propagate": false
+      },
+      "BibleUploader": {
+          "level": "INFO",
+          "handlers": ["console"],
+          "propagate": false
+      },
+      "bible_storage": {
+          "level": "INFO",
+          "handlers": ["console"],
+          "propagate": false
+      },
+      "TheologicalValidator": {
+          "level": "INFO",
+          "handlers": ["console"],
+          "propagate": false
       }
-    }
   }
+}

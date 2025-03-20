@@ -1,9 +1,7 @@
 # src/bible_manager/uploader.py
 """
 BibleUploader Module for Bible-AI
-
-Handles uploading, validating, converting, and storing Bible texts with theological
-accuracy checks, parallel processing, and robust error handling.
+Handles uploading, validating, converting, and storing Bible texts.
 """
 
 import os
@@ -16,22 +14,12 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-# Project-specific imports with fallbacks
-try:
-    from src.utils.logger import get_logger
-    from src.bible_manager.converter import BibleConverter
-    from src.bible_manager.storage import BibleStorage
-    from src.theology.validator import TheologicalValidator  # For theological checks
-except ImportError as e:
-    logging.basicConfig(level=logging.INFO)
-    get_logger = lambda name: logging.getLogger(name)
-    logger = get_logger("BibleUploader")
-    logger.error(f"Missing dependencies: {e}. Proceeding with basic functionality.")
-    BibleConverter = object  # Fallback
-    BibleStorage = object
-    TheologicalValidator = object
+# Project-specific imports (no fallback)
+from src.utils.logger import get_logger
+from src.bible_manager.converter import BibleConverter
+from src.bible_manager.storage import BibleStorage
+from src.theology.validator import TheologicalValidator
 
-# Initialize logger
 logger = get_logger("BibleUploader")
 
 class BibleUploader:
@@ -39,35 +27,25 @@ class BibleUploader:
     Handles the upload, validation, conversion, and storage of Bible texts for Bible-AI.
 
     Attributes:
-        config_path: Path to configuration file.
-        upload_dir: Directory for temporary uploaded files.
-        converter: BibleConverter instance.
-        storage: BibleStorage instance.
-        validator: TheologicalValidator instance.
-        supported_formats: List of supported file extensions.
-        max_file_size_mb: Maximum file size in MB.
+        upload_dir (Path): Directory for temporary uploaded files.
+        max_file_size_mb (int): Maximum file size in megabytes.
+        config (dict): Configuration dictionary.
+        converter (BibleConverter): Instance for converting files.
+        storage (BibleStorage): Instance for storing files.
+        validator (TheologicalValidator): Instance for theological validation.
+        supported_formats (List[str]): List of supported file extensions.
     """
     
     def __init__(self, config_path: Optional[str] = None, upload_dir: str = "data/uploads", max_file_size_mb: int = 100):
-        """
-        Initialize the BibleUploader.
-
-        Args:
-            config_path (Optional[str]): Path to configuration file.
-            upload_dir (str): Directory for temporary uploaded files.
-            max_file_size_mb (int): Maximum file size in megabytes.
-        """
-        self.upload_dir = upload_dir
-        os.makedirs(self.upload_dir, exist_ok=True)
+        self.upload_dir = Path(upload_dir)
+        self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.max_file_size_mb = max_file_size_mb
-        self.config = self._load_config(config_path)
-
-        # Initialize dependencies
-        self.converter = BibleConverter(config_path=self.config.get("converter", {}).get("config_path", "config/bible_sources.json"))
-        self.storage = BibleStorage(config_path=config_path) if 'BibleStorage' not in globals() else BibleStorage(config_path=config_path)
-        self.validator = TheologicalValidator(config=self.config.get("theology", {})) if 'TheologicalValidator' not in globals() else TheologicalValidator()
+        self.config = self._load_config(config_path or "config/bible_sources.json")
+        self.converter = BibleConverter()
+        self.storage = BibleStorage(config_path=config_path or "config/bible_sources.json")
+        self.validator = TheologicalValidator(rules_path="config/theological_rules.json")
         self.supported_formats = self.config.get("converter", {}).get("supported_formats", [".usfm", ".osis", ".json", ".txt", ".csv"])
-        logger.info("BibleUploader initialized with upload_dir: %s, max_file_size: %dMB", self.upload_dir, self.max_file_size_mb)
+        logger.info(f"BibleUploader initialized with upload_dir: {self.upload_dir}")
 
     def _load_config(self, config_path: Optional[str]) -> Dict[str, Any]:
         """Load configuration from a JSON file with defaults."""
@@ -77,8 +55,12 @@ class BibleUploader:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config.update(json.load(f))
                 logger.info(f"Loaded config from {config_path}")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing error in {config_path}: {e}")
+                raise
             except Exception as e:
-                logger.error(f"Failed to load config: {e}")
+                logger.error(f"Unexpected error while loading config {config_path}: {e}")
+                raise
         return config
 
     def upload_file(self, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
@@ -141,6 +123,7 @@ class BibleUploader:
         except Exception as e:
             logger.error("Upload failed: %s", e)
             return False, f"Upload failed: {str(e)}"
+        pass
 
     def _validate_bible_data(self, bible_data: Dict[str, Any]) -> Tuple[bool, str]:
         """
@@ -184,6 +167,7 @@ class BibleUploader:
         except Exception as e:
             logger.error("Validation failed: %s", e)
             return False, f"Validation failed: {str(e)}"
+        pass
 
     def upload_directory(self, dir_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Tuple[bool, str]]:
         """
@@ -214,6 +198,7 @@ class BibleUploader:
                     results[file_path] = (False, f"Processing error: {str(e)}")
 
         return results
+    pass
 
     def cleanup(self) -> None:
         """
@@ -228,6 +213,7 @@ class BibleUploader:
                 logger.info("Temporary files cleaned up successfully")
         except Exception as e:
             logger.error("Cleanup failed: %s", e)
+        pass
 
 if __name__ == "__main__":
     import argparse

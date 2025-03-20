@@ -1,46 +1,46 @@
 ﻿# Note: Requires Python 3.12.0 (install via pyenv, python.org, or system package manager)
 
 # Web Framework (src/serve/api.py)
-fastapi==0.115.2  # Latest stable assumed for March 2025, optimized for 3.12
-uvicorn==0.31.0  # Latest ASGI server, assumed update by March 2025
-starlette==0.39.0  # Matches FastAPI, assumed minor bump
-pydantic==2.10.0  # Latest Pydantic 2.x, assumed update for 3.12
+fastapi  # Latest stable assumed for March 2025, optimized for 3.12
+uvicorn # Latest ASGI server, assumed update by March 2025
+starlette  # Matches FastAPI, assumed minor bump
+pydantic  # Latest Pydantic 2.x, assumed update for 3.12
 
 # Machine Learning and Model Training (src/model/, src/training/)
-torch==2.5.0 # Latest PyTorch, assumed release by early 2025, 3.12 compatible
-torchvision==0.20.0  # Matches torch, assumed update
-transformers==4.46.0  # Latest Hugging Face transformers, assumed update
-numpy==1.26.4  # Latest NumPy, minor update assumed for 3.12
+torch # Latest PyTorch, assumed release by early 2025, 3.12 compatible
+torchvision  # Matches torch, assumed update
+transformers # Latest Hugging Face transformers, assumed update
+numpy  # Latest NumPy, minor update assumed for 3.12
 
 # Data Processing and Utilities (src/data/)
-pandas==2.2.3  # Latest stable, minor update assumed
-requests==2.32.3  # Stable, no major update expected
-beautifulsoup4==4.12.3  # Latest, sufficient for parsing
+pandas # Latest stable, minor update assumed
+requests  # Stable, no major update expected
+beautifulsoup4  # Latest, sufficient for parsing
 
 # Security (src/serve/api.py, src/utils/security.py)
-pyjwt==2.9.0  # Latest stable, secure
-passlib[bcrypt]==1.7.4  # Stable password hashing
-python-multipart==0.0.10  # Minor update assumed for 3.12
+pyjwt  # Latest stable, secure
+passlib[bcrypt] # Stable password hashing
+python-multipart # Minor update assumed for 3.12
 
 # Logging and Monitoring (src/utils/logger.py, src/monitoring/)
-prometheus-client==0.21.0  # Latest, assumed minor update by March 2025
+prometheus-client  # Latest, assumed minor update by March 2025
 
 # File and Path Handling
-pathlib2==2.3.7.post1  # Stable, compatible with 3.12 (stdlib pathlib sufficient, kept for consistency)
+pathlib2  # Stable, compatible with 3.12 (stdlib pathlib sufficient, kept for consistency)
 
 # Testing and Development Tools
-pytest==8.3.3  # Latest stable, supports 3.12
-pytest-asyncio==0.24.0  # Latest async testing, 3.12 compatible
-httpx==0.27.2  # Latest HTTP client, stable
-flake8==7.1.1  # Linting, stable
-mypy==1.12.0  # Latest static typing, assumed update for 3.12
-black==24.10.0  # Latest formatter, assumed update by March 2025
-ruff==0.6.0  # Modern linter/formatter, rising star in 2025
-isort==5.13.2  # Import sorting, latest stable
+pytest  # Latest stable, supports 3.12
+pytest-asyncio  # Latest async testing, 3.12 compatible
+httpx  # Latest HTTP client, stable
+flake8  # Linting, stable
+mypy  # Latest static typing, assumed update for 3.12
+black  # Latest formatter, assumed update by March 2025
+ruff # Modern linter/formatter, rising star in 2025
+isort  # Import sorting, latest stable
 
 # Deployment
-gunicorn==23.0.0  # Latest WSGI server, stable
-hypercorn==0.17.3  # Latest ASGI server for advanced async, assumed update
+gunicorn  # Latest WSGI server, stable
+hypercorn  # Latest ASGI server for advanced async, assumed update
 
 # Optional GPU Support (uncomment for GPU, adjust CUDA version for late 2025)
 # torch==2.5.0+cu124  # PyTorch with CUDA 12.4 (assumed latest by late 2025)

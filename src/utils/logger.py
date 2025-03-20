@@ -11,15 +11,24 @@ import sys
 import time
 import json
 from datetime import datetime
-from typing import Optional, Union, Dict, Any, Lis
+from typing import Optional, Union, Dict, Any, List
 import logging.config
-with open("config/logging_config.json") as f:
-    logging_config = json.load(f)
-logging.config.dictConfig(logging_config)
-logger = logging.getLogger("trainer")
+
 
 # Default log format
 DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Global flag to track if logging was configured via dictConfig
+configured = False
+# Load logging config safely
+try:
+    with open("config/logging_config.json", "r") as f:
+        logging_config = json.load(f)
+    logging.config.dictConfig(logging_config)
+except FileNotFoundError:
+    logging.basicConfig(level=logging.INFO)  # Fallback if config is missing
+except Exception as e:
+    print(f"Error loading logging config: {e}")
+    logging.basicConfig(level=logging.INFO)
 
 class BibleAILogger:
     """
@@ -65,32 +74,23 @@ class BibleAILogger:
         
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
+        # Only add handlers if not already configured by dictConfig
+        if not self.logger.handlers and not configured:
+            formatter = logging.Formatter(log_format)
+            if console_output:
+                console_handler = logging.StreamHandler(sys.stdout)
+                console_handler.setFormatter(formatter)
+                self.logger.addHandler(console_handler)
+            if log_file:
+                log_dir = os.path.dirname(log_file)
+                if log_dir and not os.path.exists(log_dir):
+                    os.makedirs(log_dir)
+                file_handler = logging.FileHandler(log_file)
+                file_handler.setFormatter(formatter)
+                self.logger.addHandler(file_handler)
         
-        # Clear any existing handlers
-        self.logger.handlers = []
-        
-        # Create formatter
-        formatter = logging.Formatter(log_format)
-        
-        # Add console handler if requested
-        if console_output:
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setFormatter(formatter)
-            self.logger.addHandler(console_handler)
-        
-        # Add file handler if log_file is specified
-        if log_file:
-            # Create directory if it doesn't exist
-            log_dir = os.path.dirname(log_file)
-            if log_dir and not os.path.exists(log_dir):
-                os.makedirs(log_dir)
-                
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
-        
-        # For tracking theological context
         self.theological_context = {}
+        
     
     def set_theological_context(self, **kwargs):
         """
