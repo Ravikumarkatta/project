@@ -48,6 +48,8 @@ pyjwt>=2.8.0
 passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
 
+mypy>=1.0.0
+
 # Optional GPU Support (uncomment for GPU, adjust CUDA version for late 2025)
 # torch==2.5.0+cu124  # PyTorch with CUDA 12.4 (assumed latest by late 2025)
 # torchvision==0.20.0+cu124

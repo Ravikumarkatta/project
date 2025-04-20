@@ -4,9 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple
 from torch.utils.checkpoint import checkpoint
+from transformers import PreTrainedTokenizer
 
 from src.model.attention import MultiHeadAttention
-from model.verse_embeddings import TokenEmbeddings, PositionalEncoding
+from src.model.verse_embeddings import TokenEmbeddings, PositionalEncoding
 from src.model.verse_detector import VerseDetector
 from src.theology.validator import TheologicalValidator
 
@@ -138,9 +139,11 @@ class BiblicalTransformer(nn.Module):
     Features enhanced context understanding for theological concepts and verse references.
     """
     
-    def __init__(self, config: BiblicalTransformerConfig):
+    def __init__(self, config: BiblicalTransformerConfig, tokenizer: PreTrainedTokenizer):
         super().__init__()
         self.config = config
+        self.tokenizer = tokenizer  # Add tokenizer
+        self.validator = TheologicalValidator({"min_score": 0.9, "theological_terms": ["God", "Jesus", "Holy Spirit", "jesus christ", "messiah", "christ"]})
         
         # Core embeddings
         self.token_embedding = TokenEmbeddings(
@@ -288,7 +291,8 @@ class BiblicalTransformer(nn.Module):
         verse_logits = self.verse_prediction_head(hidden_states)
         theological_logits = self.theological_classification_head(hidden_states)
         
-        return {
+        # Initialize output dictionary
+        output_dict = {
             "loss": loss,
             "logits": lm_logits,
             "verse_logits": verse_logits,
@@ -296,23 +300,16 @@ class BiblicalTransformer(nn.Module):
             "hidden_states": all_hidden_states,
             "attentions": all_attentions,
         }
-    # Validate outputs
-    validated_outputs = {}
-    if labels is not None:
-        # Decode logits to text for validation
-        predicted_ids = lm_logits.argmax(dim=-1)
-        predicted_text = self.tokenizer.detokenize(predicted_ids)  # Assume tokenizer has detokenize method
-        validation_score = self.validator.validate({"text": predicted_text})
-        validated_outputs["validation_score"] = validation_score
 
-    # Update output dictionary
-    output_dict = {
-        "loss": loss,
-        "logits": lm_logits,
-        "verse_logits": verse_logits,
-        "theological_logits": theological_logits,
-        "hidden_states": all_hidden_states,
-        "attentions": all_attentions,
-    }
-    output_dict.update(validated_outputs)
-    return output_dict
+        # Validate outputs if labels are provided
+        if labels is not None:
+            # Decode logits to text for validation
+            predicted_ids = lm_logits.argmax(dim=-1)
+            predicted_text = self.tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)
+            validation_scores = [
+                self.validator.validate({"text": text}) 
+                for text in predicted_text
+            ]
+            output_dict["validation_scores"] = torch.tensor(validation_scores, device=input_ids.device)
+
+        return output_dict
