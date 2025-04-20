@@ -1,0 +1,25 @@
+{
+    "category": "Core Doctrines",
+    "description": "Fundamental Christian doctrines that define orthodox faith",
+    "orthodox_statements": [
+        "The Bible is the inspired and inerrant Word of God",
+        "Jesus Christ is fully God and fully man",
+        "Salvation is by grace through faith in Jesus Christ",
+        "God exists eternally in three persons: Father, Son, and Holy Spirit",
+        "Jesus died for our sins and rose bodily from the dead",
+        "Jesus will return physically to judge the living and the dead"
+    ],
+    "heterodox_statements": [
+        "The Bible contains errors and myths",
+        "Jesus was just a good moral teacher",
+        "There are many paths to salvation",
+        "God is not truly a Trinity",
+        "Jesus did not physically rise from the dead",
+        "Jesus was created by God"
+    ],
+    "key_statements": [
+        "Scripture alone is the final authority for faith and practice",
+        "Christ's death on the cross was a substitutionary atonement",
+        "Justification is by faith alone through grace alone in Christ alone"
+    ]
+}

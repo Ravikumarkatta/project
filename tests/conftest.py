@@ -1,18 +1,37 @@
 # tests/conftest.py
-import pytest
 import os
 import sys
+import pytest
+from pathlib import Path
 
-# Add the src directory to the path so we can import modules
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+@pytest.fixture
+def test_data_dir():
+    """Return path to test data directory."""
+    return Path(__file__).parent / "data"
 
 @pytest.fixture
 def sample_bible_data():
-    """Fixture that provides some sample Bible data for tests"""
+    """Provide sample Bible data for testing."""
     return {
-        "verses": {
-            "John 3:16": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
-            "Genesis 1:1": "In the beginning God created the heavens and the earth.",
-            "Psalm 23:1": "The LORD is my shepherd, I lack nothing."
+        "Genesis": {
+            "1": {
+                "1": "In the beginning God created the heaven and the earth.",
+                "2": "And the earth was without form, and void."
+            }
+        },
+        "John": {
+            "3": {
+                "16": "For God so loved the world, that he gave his only begotten Son."
+            }
         }
     }
+
+@pytest.fixture
+def theological_validator():
+    """Provide theological validator instance for testing."""
+    from src.theology.validator import TheologicalValidator
+    return TheologicalValidator()
