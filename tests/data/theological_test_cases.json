@@ -1,0 +1,52 @@
+{
+    "test_cases": [
+        {
+            "name": "salvation_by_grace",
+            "input": "We are saved by grace through faith in Jesus Christ, not by works of the law",
+            "expected_valid": true,
+            "category": "soteriology"
+        },
+        {
+            "name": "deity_of_christ",
+            "input": "Jesus Christ is fully God and fully man, the eternal Son who became incarnate",
+            "expected_valid": true,
+            "category": "christology"
+        },
+        {
+            "name": "resurrection",
+            "input": "Christ rose bodily from the dead on the third day, defeating death and sin",
+            "expected_valid": true,
+            "category": "christology"
+        },
+        {
+            "name": "scripture_authority",
+            "input": "The Bible is the inspired and authoritative Word of God, useful for teaching",
+            "expected_valid": true,
+            "category": "bibliology"
+        },
+        {
+            "name": "invalid_soteriology",
+            "input": "Salvation is achieved through good works and human effort alone",
+            "expected_valid": false,
+            "category": "soteriology"
+        },
+        {
+            "name": "invalid_christology",
+            "input": "Jesus was just a good teacher but not divine",
+            "expected_valid": false,
+            "category": "christology"
+        },
+        {
+            "name": "complex_valid_case",
+            "input": "The Bible teaches that salvation is by grace through faith in Jesus Christ, who is fully God and fully man. He died for our sins and rose bodily from the dead on the third day.",
+            "expected_valid": true,
+            "category": "integrated"
+        },
+        {
+            "name": "complex_invalid_case",
+            "input": "While Jesus was a great prophet, salvation comes through a combination of faith and works. The scriptures are helpful but not necessarily inspired by God.",
+            "expected_valid": false,
+            "category": "integrated"
+        }
+    ]
+}

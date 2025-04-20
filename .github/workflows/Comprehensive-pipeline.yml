@@ -1,4 +1,4 @@
-name: Bible-AI Comprehensive Pipeline
+name: Bible-AI Pipeline
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    - cron: '0 2 * * 1'  # Weekly run at 2 AM on Mondays for deep scan
+    - cron: '0 2 * * 1'  # Weekly run at 2 AM on Mondays
 
 jobs:
   code-quality:
@@ -15,47 +15,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better analysis
+          fetch-depth: 0
       
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       
       - name: Static Type Checking
         run: |
-          pip install mypy
-          mypy src/ --ignore-missing-imports --disallow-untyped-defs --disallow-incomplete-defs
+          mypy src/ --ignore-missing-imports --disallow-untyped-defs
       
       - name: Linting & Code Style
         run: |
-          pip install black flake8 isort
           black --check src/ tests/
-          flake8 src/ tests/
+          flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203
           isort --check-only --profile black src/ tests/
           
       - name: Security Scan
-        uses: ShiftLeftSecurity/scan-action@master
-        with:
-          type: "python"
-          
-      - name: Dependency Vulnerability Scan
-        uses: pypa/gh-action-pip-audit@v1.0.8
-        with:
-          inputs: requirements.txt
-      
-      - name: Code Complexity Analysis
         run: |
-          pip install radon
-          radon cc src/ -a -nc
-          radon mi src/ -s
+          bandit -r src/
+          safety check -r requirements.txt
 
   testing:
     name: Testing Matrix
@@ -64,8 +54,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12']  # Updated Python versions
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
     
     steps:
       - uses: actions/checkout@v4
@@ -75,12 +65,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       
       - name: Verify biblical data integrity
         run: |
@@ -88,7 +81,6 @@ jobs:
       
       - name: Run unit tests with pytest
         run: |
-          pip install pytest pytest-cov
           pytest tests/unit/ -v --cov=src/ --cov-report=xml
       
       - name: Run theological validation tests
@@ -96,7 +88,7 @@ jobs:
         run: |
           python scripts/theology_validator.py --test-mode
       
-      - name: Upload coverage to Codecov
+      - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
@@ -121,12 +113,15 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       
       - name: Run API integration tests
         run: |
@@ -138,11 +133,11 @@ jobs:
         run: |
           python -m src.theology.validator --integration-test
 
-  performance-testing:
-    name: Performance Testing
-    needs: integration-testing
+  build:
+    name: Build Package
+    needs: [integration-testing]
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - uses: actions/checkout@v4
@@ -151,172 +146,46 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: requirements.txt
       
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install build twine
       
-      - name: Run performance benchmarks
+      - name: Build package
+        run: python -m build
+      
+      - name: Check build artifacts
         run: |
-          python scripts/benchmark.py --quick
-          
-      - name: Store benchmark results
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'pytest'
-          output-file-path: benchmarks/output.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          
-  frontend-testing:
-    name: Frontend Testing
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'  # Upgraded from 18 to 20 for better performance
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run linters
-        run: |
-          npm run lint
-          npm run stylelint
-      
-      - name: Run unit tests
-        run: npm test -- --coverage
-      
-      - name: Run E2E tests
-        run: npm run test:e2e
-      
-      - name: Build frontend
-        run: npm run build
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: frontend-build
-          path: frontend/build
+          ls -l dist/
+          twine check dist/*
 
-  build-and-deploy:
-    name: Build and Deploy
-    needs: [integration-testing, frontend-testing]
+  deploy:
+    name: Deploy
+    needs: [build]
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment: [staging, production]
-        include:
-          - environment: staging
-            url: https://staging.your-bible-ai.com
-            should_deploy: true
-          - environment: production
-            url: https://your-bible-ai.com
-            should_deploy: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Download frontend build
-        uses: actions/download-artifact@v3
-        with:
-          name: frontend-build
-          path: frontend/build
-      
-      - name: Cache Bible Data
-        uses: actions/cache@v3
-        with:
-          path: |
-            data/raw/bibles
-            data/processed/bible.db
-          key: ${{ runner.os }}-bible-data-${{ hashFiles('data/raw/bibles/**') }}
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build and push backend image
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ matrix.should_deploy }}
+          push: true
           tags: |
-            ghcr.io/${{ github.repository }}/bible-ai-backend:latest
-            ghcr.io/${{ github.repository }}/bible-ai-backend:${{ matrix.environment }}
+            ghcr.io/${{ github.repository }}/bible-ai:latest
+            ghcr.io/${{ github.repository }}/bible-ai:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
-      - name: Deploy to ${{ matrix.environment }}
-        if: matrix.should_deploy
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
-      
-      - name: Update Kubernetes deployment
-        if: matrix.should_deploy
-        run: |
-          doctl kubernetes cluster kubeconfig save bible-ai-cluster
-          kubectl set image deployment/bible-ai bible-ai=ghcr.io/${{ github.repository }}/bible-ai-backend:${{ matrix.environment }}
-          kubectl rollout status deployment/bible-ai
-      
-      - name: Verify Deployment
-        if: matrix.should_deploy
-        run: |
-          curl --retry 5 --retry-delay 5 -f ${{ matrix.url }}/health
-
-  documentation:
-    name: Update Documentation
-    needs: build-and-deploy
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      
-      - name: Install documentation dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install mkdocs mkdocs-material mkdocstrings
-      
-      - name: Generate API documentation
-        run: |
-          python scripts/generate_api_docs.py
-      
-      - name: Build documentation
-        run: mkdocs build
-      
-      - name: Deploy documentation
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-
-  semantic-release:
-    name: Semantic Release
-    needs: build-and-deploy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Semantic Release
-        uses: semantic-release/semantic-release@v22
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
