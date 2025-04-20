@@ -139,13 +139,34 @@ jobs:
         run: npm run build
       
       - name: Verify frontend build
-        run: ../scripts/verify-frontend.sh
+        run: |
+          if [ ! -d "build" ]; then
+            echo "❌ Build directory does not exist"
+            exit 1
+          fi
+          ../scripts/verify-frontend.sh
+      
+      - name: Prepare artifact
+        run: |
+          echo "Preparing build artifacts at $(pwd)/build"
+          ls -la build/
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
+        if: success()
         with:
           name: frontend-build
-          path: build
+          path: frontend/build/
+          retention-days: 1
+        continue-on-error: true
+        
+      - name: Retry artifact upload
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: frontend-build
+          path: frontend/build/
+          retention-days: 1
 
   performance:
     name: Performance Testing
@@ -213,14 +234,29 @@ jobs:
       
       - name: Verify package
         run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Package distribution directory does not exist"
+            exit 1
+          fi
           ls -l dist/
           twine check dist/*
       
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
+        if: success()
         with:
           name: dist
           path: dist/
+          retention-days: 1
+        continue-on-error: true
+      
+      - name: Retry package upload
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
 
   deploy:
     name: Deploy
@@ -233,17 +269,34 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Download frontend build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           name: frontend-build
           path: frontend/build
       
+      - name: Verify frontend download
+        run: |
+          if [ ! -d "frontend/build" ]; then
+            echo "❌ Frontend build artifacts not downloaded correctly"
+            exit 1
+          fi
+          ls -la frontend/build/
+      
       - name: Download package
         if: github.ref == 'refs/heads/main'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           name: dist
           path: dist
+      
+      - name: Verify package download
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Package artifacts not downloaded correctly"
+            exit 1
+          fi
+          ls -la dist/
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
