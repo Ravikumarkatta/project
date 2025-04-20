@@ -100,35 +100,36 @@ class BiblicalTransformerLayer(nn.Module):
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # Define a helper function for the attention block
         def attention_block(hs, mask, verse_refs):
-        residual = hs
-        hs = self.layer_norm1(hs)
-        attn_output, attn_weights = self.attention(
-            hs, hs, hs, mask, output_attentions, verse_references=verse_refs
-        )
-        return residual + attn_output, attn_weights
+            residual = hs
+            hs = self.layer_norm1(hs)
+            attn_output, attn_weights = self.attention(
+                hs, hs, hs, mask, output_attentions, verse_references=verse_refs
+            )
+            return residual + attn_output, attn_weights
         
         # Use checkpointing for the attention block
-    attention_output, attention_weights = checkpoint(
-        attention_block,
-        hidden_states,
-        attention_mask,
-        verse_references,
-        use_reentrant=False
-    )
-    # Integrate theological context if provided
-    if theological_context is not None:
-        context_gate = self.theological_context_gate(hidden_states)
-        hidden_states = hidden_states * (1 - context_gate) + theological_context * context_gate
+        attention_output, attention_weights = checkpoint(
+            attention_block,
+            hidden_states,
+            attention_mask,
+            verse_references,
+            use_reentrant=False
+        )
 
-    if output_attentions:
-        return hidden_states, attention_weights
-    return hidden_states, None
+        # Feed-forward block
+        residual = attention_output
+        hidden_states = self.layer_norm2(attention_output)
+        feed_forward_output = self.feed_forward(hidden_states)
+        hidden_states = residual + feed_forward_output
 
-    # Feed-forward block
-    residual = attention_output
-    hidden_states = self.layer_norm2(attention_output)
-    feed_forward_output = self.feed_forward(hidden_states)
-    hidden_states = residual + feed_forward_output
+        # Integrate theological context if provided
+        if theological_context is not None:
+            context_gate = self.theological_context_gate(hidden_states)
+            hidden_states = hidden_states * (1 - context_gate) + theological_context * context_gate
+
+        if output_attentions:
+            return hidden_states, attention_weights
+        return hidden_states, None
 
 
 class BiblicalTransformer(nn.Module):
@@ -202,11 +203,11 @@ class BiblicalTransformer(nn.Module):
     
     def get_verse_embeddings(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Extract and embed Bible verse references from input tokens."""
-         # Use VerseDetector to get verse features
-    verse_output = self.verse_reference_detector(hidden_states=input_ids.unsqueeze(-1))
-    verse_indices = verse_output['verse_logits'].argmax(dim=-1)  # Simplified: use logits to get indices
-    verse_embeds = self.verse_embedding(verse_indices)
-    return self.verse_projection(verse_embeds)
+        # Use VerseDetector to get verse features
+        verse_output = self.verse_reference_detector(hidden_states=input_ids.unsqueeze(-1))
+        verse_indices = verse_output['verse_logits'].argmax(dim=-1)  # Simplified: use logits to get indices
+        verse_embeds = self.verse_embedding(verse_indices)
+        return self.verse_projection(verse_embeds)
     
     def get_theological_context(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """Extract theological context from current hidden states."""
