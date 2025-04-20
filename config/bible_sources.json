@@ -2,19 +2,43 @@
     "sources": {
         "kjv": {
             "name": "King James Version",
-            "format": "json_structured",
-            "download_url": null,
-            "local_file": "kjv_structured.json"
+            "format": "txt",
+            "download_url": "https://www.gutenberg.org/files/10/10.txt",
+            "local_file": "kjv.txt",
+            "language": "en",
+            "year": 1611,
+            "license": "Public Domain"
         },
-        "niv": {
-            "name": "New International Version",
-            "format": "json_structured",
-            "download_url": "https://example.com/niv.json"
+        "asv": {
+            "name": "American Standard Version",
+            "format": "usfx",
+            "download_url": "https://ebible.org/Scriptures/eng-asv_usfx.zip",
+            "local_file": "eng-asv_usfx.xml",
+            "language": "en",
+            "year": 1901,
+            "license": "Public Domain"
         },
-        "esv": {
-            "name": "English Standard Version",
-            "format": "json_structured",
-            "download_url": "https://example.com/esv.json"
+        "web": {
+            "name": "World English Bible",
+            "format": "usfx",
+            "download_url": "https://ebible.org/Scriptures/engwebp_usfx.zip",
+            "local_file": "engwebp_usfx.xml",
+            "language": "en",
+            "year": 2000,
+            "license": "Public Domain"
         }
+    },
+    "default_version": "kjv",
+    "supported_formats": ["txt", "usfx", "json", "xml"],
+    "download_settings": {
+        "timeout": 300,
+        "max_retries": 3,
+        "chunk_size": 8192,
+        "verify_ssl": true
+    },
+    "storage": {
+        "raw_dir": "data/raw/bibles",
+        "processed_dir": "data/processed/bibles",
+        "max_file_size_mb": 100
     }
 }

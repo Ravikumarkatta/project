@@ -1,65 +1,185 @@
 {
-    "validator_version": "1.0",
-    "minimum_score": 0.9,
-    "core_terms": {
-      "required": [
-        "God",
-        "Jesus",
-        "Holy Spirit"
-      ],
-      "forbidden": [
-        "heresy",
-        "blasphemy"
-      ],
-      "context_sensitive": {
-        "love": {
-          "positive_contexts": ["God", "neighbor", "faith"],
-          "negative_contexts": ["sin", "hate"]
-        },
-        "judgment": {
-          "positive_contexts": ["righteousness", "justice"],
-          "negative_contexts": ["condemnation", "wrath"]
-        }
-      }
-    },
-    "doctrinal_checks": {
-      "trinity": {
-        "description": "Ensure affirmation of the Trinity",
-        "required_phrases": ["Father, Son, and Holy Spirit"],
-        "forbidden_phrases": ["unitarian", "modalism"]
+  "validator_version": "1.0",
+  "minimum_score": 70.0,
+  
+  "core_terms": {
+    "required": ["God", "Jesus", "Holy Spirit"],
+    "forbidden": ["heresy", "blasphemy"],
+    "context_sensitive": {
+      "love": {
+        "positive_contexts": ["God", "neighbor", "faith"],
+        "negative_contexts": ["sin", "hate"]
       },
-      "salvation": {
-        "description": "Ensure salvation through Jesus alone",
-        "required_phrases": ["faith in Christ", "grace"],
-        "forbidden_phrases": ["works alone", "self-salvation"]
-      }
-    },
-    "denominational_variations": {
-      "baptism": {
-        "default": "believer's baptism",
-        "variations": {
-          "catholic": "infant baptism",
-          "orthodox": "chrismation"
-        }
-      },
-      "eucharist": {
-        "default": "Lord's Supper",
-        "variations": {
-          "catholic": "transubstantiation",
-          "protestant": "symbolic"
-        }
-      }
-    },
-    "pastoral_sensitivity": {
-      "topics": {
-        "grief": {
-          "encouraged_phrases": ["hope", "comfort", "peace"],
-          "avoid_phrases": ["despair", "hopeless"]
-        },
-        "sin": {
-          "encouraged_phrases": ["repentance", "forgiveness"],
-          "avoid_phrases": ["shame", "guilt"]
-        }
+      "judgment": {
+        "positive_contexts": ["righteousness", "justice"],
+        "negative_contexts": ["condemnation", "wrath"]
       }
     }
+  },
+
+  "doctrinal_checks": {
+    "trinity": {
+      "description": "Doctrine of the Trinity",
+      "required_phrases": ["Father, Son, and Holy Spirit", "three persons, one God"],
+      "forbidden_phrases": ["three gods", "modal", "subordinate"],
+      "key_verses": ["Matthew 28:19", "2 Corinthians 13:14"],
+      "minimum_score": 80.0
+    },
+    "salvation": {
+      "description": "Doctrine of Salvation",
+      "required_phrases": ["grace through faith", "Christ alone"],
+      "forbidden_phrases": ["works alone", "merit salvation"],
+      "key_verses": ["Ephesians 2:8-9", "Romans 10:9-10"],
+      "minimum_score": 80.0
+    }
+  },
+
+  "denominational_variations": {
+    "baptism": {
+      "default": "baptism",
+      "variations": {
+        "catholic": "infant baptism",
+        "baptist": "believers baptism",
+        "orthodox": "holy baptism"
+      }
+    },
+    "communion": {
+      "default": "Lord's Supper",
+      "variations": {
+        "catholic": "Eucharist",
+        "orthodox": "Divine Liturgy",
+        "protestant": "Communion"
+      }
+    }
+  },
+
+  "denominational_positions": {
+    "catholic": {
+      "sacraments": {
+        "required": [["seven sacraments", "holy sacraments"]],
+        "forbidden": [["only two sacraments", "mere symbols"]]
+      },
+      "authority": {
+        "required": [["magisterium", "church tradition"]],
+        "forbidden": [["sola scriptura"]]
+      }
+    },
+    "protestant": {
+      "sola_scriptura": {
+        "required": [["scripture alone", "biblical authority"]],
+        "forbidden": [["church tradition equal"]]
+      },
+      "sacraments": {
+        "required": [["two sacraments", "ordinances"]],
+        "forbidden": [["seven sacraments"]]
+      }
+    }
+  },
+
+  "controversial_topics": {
+    "predestination": {
+      "keywords": ["predestined", "elect", "free will"],
+      "balanced_view": [
+        "divine sovereignty",
+        "human responsibility",
+        "mystery"
+      ],
+      "neutral_response": "This topic has been debated throughout church history",
+      "context": {
+        "required": ["biblical context", "historical debate"],
+        "forbidden": ["absolute certainty", "dismissive"]
+      }
+    },
+    "end_times": {
+      "keywords": ["rapture", "millennium", "tribulation"],
+      "balanced_view": [
+        "various views exist",
+        "faithful Christians differ",
+        "focus on Christ's return"
+      ],
+      "neutral_response": "Christians hold different views on end-times details"
+    }
+  },
+
+  "historical_debates": {
+    "christology": {
+      "keywords": ["nature of Christ", "hypostatic union"],
+      "historical_context": ["Chalcedon", "church councils"],
+      "guidelines": ["reference creeds", "historical development"]
+    },
+    "canon": {
+      "keywords": ["biblical canon", "deuterocanonical"],
+      "historical_context": ["church councils", "manuscript tradition"],
+      "guidelines": ["development process", "criteria"]
+    }
+  },
+
+  "pastoral_sensitivity": {
+    "topics": {
+      "suffering": {
+        "keywords": ["pain", "loss", "grief"],
+        "encouraged_phrases": ["God's presence", "comfort", "hope"],
+        "avoid_phrases": ["deserved", "punishment", "simple answer"],
+        "pastoral_guidance": "Emphasize God's presence in suffering",
+        "scripture_comfort": ["Psalm 23", "Romans 8:28"]
+      },
+      "doubt": {
+        "keywords": ["uncertainty", "questioning", "struggle"],
+        "encouraged_phrases": ["honest questions", "faith journey", "seek understanding"],
+        "avoid_phrases": ["lack of faith", "unbelief", "just believe"],
+        "pastoral_guidance": "Acknowledge the reality of doubt in faith",
+        "scripture_comfort": ["Mark 9:24", "Psalm 13"]
+      }
+    }
+  },
+
+  "life_situations": {
+    "grief": {
+      "required_elements": [["comfort", "presence"], ["hope", "promise"]],
+      "tone": ["gentle", "compassionate", "patient"]
+    },
+    "crisis": {
+      "required_elements": [["support", "help"], ["prayer", "guidance"]],
+      "tone": ["calm", "supportive", "direct"]
+    }
+  },
+
+  "hermeneutical_principles": {
+    "context": {
+      "required_elements": [["immediate context", "surrounding verses"]],
+      "avoid": [["isolated interpretation", "proof text"]],
+      "suggestion": "Consider the surrounding context"
+    },
+    "genre": {
+      "required_elements": [["literary form", "type of writing"]],
+      "avoid": [["literal only", "ignore genre"]],
+      "suggestion": "Account for the biblical genre"
+    }
+  },
+
+  "biblical_genres": {
+    "narrative": {
+      "required_considerations": [["story elements", "plot"], ["characters", "setting"]],
+      "common_pitfalls": [["allegory everything", "ignore history"]],
+      "guidelines": ["Consider historical context", "Look for main point"]
+    },
+    "poetry": {
+      "required_considerations": [["imagery", "metaphor"], ["parallelism", "structure"]],
+      "common_pitfalls": [["literal only", "ignore figures"]],
+      "guidelines": ["Note poetic devices", "Consider emotional content"]
+    }
+  },
+
+  "interpretive_contexts": {
+    "historical": {
+      "required_elements": [["time period", "culture"], ["customs", "background"]],
+      "context_indicators": ["ancient", "historical", "culture"],
+      "suggestion": "Consider historical background"
+    },
+    "literary": {
+      "required_elements": [["genre", "style"], ["structure", "flow"]],
+      "context_indicators": ["writing", "literature", "author"],
+      "suggestion": "Examine literary features"
+    }
   }
+}
