@@ -10,15 +10,15 @@ This document outlines the phased implementation plan for the Bible-AI project, 
 - [x] Create configuration system and schemas
 - [x] Develop basic data preprocessing pipeline
 - [x] Implement Bible text loading and parsing module
-- [ ] Set up CI/CD pipeline with basic tests
+- [x] Set up CI/CD pipeline with basic tests
 
 ### Month 2: Data Collection & Processing
-- [ ] Create Bible download/upload mechanisms
-- [ ] Build data collection pipelines for commentaries
-- [ ] Develop tokenization for biblical content
-- [ ] Create verse reference detection system
-- [ ] Build data augmentation techniques
-- [ ] Set up embedding generation pipeline
+- [-] Create Bible download/upload mechanisms
+- [-] Build data collection pipelines for commentaries
+- [x] Develop tokenization for biblical content
+- [x] Create verse reference detection system
+- [x] Build data augmentation techniques
+- [x] Set up embedding generation pipeline
 
 ### Month 3: Core Model Development
 - [ ] Implement base model architecture

@@ -35,7 +35,7 @@ class BibleUploader:
         self.config = self._load_config(config_path or "config/bible_sources.json")
         self.converter = BibleConverter()
         self.storage = BibleStorage(config_path=config_path or "config/bible_sources.json")
-        self.validator = TheologicalValidator(rules_path="config/theological_rules.json")
+        self.validator = TheologicalValidator()  # Let it use default config path
         default_formats = [".usfm", ".osis", ".json", ".txt", ".csv"]
         config_formats = self.config.get("converter", {}).get("supported_formats", [])
         self.supported_formats = list(set(default_formats + config_formats))

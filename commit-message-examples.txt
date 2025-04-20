@@ -1,0 +1,89 @@
+# Feature
+feat: add user authentication system
+
+Implement JWT-based authentication flow
+- Add login/logout endpoints
+- Create token validation middleware
+- Set up secure cookie handling
+
+# Bug fix
+fix: resolve memory leak in data processing
+
+Memory wasn't properly freed after batch operations
+Root cause: Unclosed database connections
+Impact: High memory usage in production
+
+# Refactor
+refactor: optimize database queries
+
+Reduce query execution time by 60%
+- Add proper indexing
+- Implement query caching
+- Consolidate redundant queries
+
+# Documentation
+docs: update API documentation
+
+Add missing endpoints and update response formats
+Include rate limiting information
+Add usage examples
+
+# Testing
+test: add unit tests for user service
+
+Increase test coverage to 85%
+- Add authentication flow tests
+- Add error handling tests
+- Mock external service calls
+
+# Chore
+chore: update dependencies
+
+Update packages to latest stable versions
+- React 18.2.0
+- TypeScript 4.9.5
+- Jest 29.3.1
+
+# Breaking Change
+BREAKING CHANGE: migrate to v2 API
+
+Major version upgrade with breaking changes
+- Change authentication headers
+- Update response formats
+- Remove deprecated endpoints
+Migration guide: docs/migration-v2.md
+
+# Security
+security: patch SQL injection vulnerability
+
+Fix CVE-2023-1234
+- Implement prepared statements
+- Add input validation
+- Update security documentation
+
+# Performance
+perf: optimize image loading
+
+Improve page load time by 40%
+- Implement lazy loading
+- Add image compression
+- Use WebP format
+- Configure CDN caching
+
+# Configuration
+config: update deployment settings
+
+Optimize production environment
+- Increase max worker threads
+- Adjust cache TTL values
+- Update rate limiting rules
+- Set logging levels
+
+# Build
+build: configure webpack optimization
+
+Reduce bundle size by 35%
+- Enable code splitting
+- Add tree shaking
+- Minimize CSS/JS
+- Configure chunk optimization
