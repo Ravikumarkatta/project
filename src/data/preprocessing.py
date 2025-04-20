@@ -2,33 +2,35 @@
 import re
 import unicodedata
 import json
+import random
 from jsonschema import validate
-with open("config/data_config_schema.json") as f:
-    schema = json.load(f)
-with open("config/data_config.json") as f:
-    config = json.load(f)
-validate(instance=config, schema=schema)
 import os
+import sqlite3
+try:
+    import psycopg2
+    from psycopg2 import sql
+    HAS_POSTGRES = True
+except ImportError:
+    HAS_POSTGRES = False
 from typing import Dict, List, Any, Tuple
 import logging
 from bs4 import BeautifulSoup
 import pandas as pd
-import psycopg2
-from psycopg2 import sql
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import PreTrainedTokenizer
-from typing import Dict, List, Tuple
+
 logger = logging.getLogger(__name__)
 
 class BiblicalTextPreprocessor:
     """Preprocess biblical texts and commentaries for model training."""
     
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, use_sqlite: bool = True):
         """Initialize with configuration.
         
         Args:
             config_path: Path to preprocessing configuration
+            use_sqlite: Whether to use SQLite instead of PostgreSQL
         """
         with open(config_path, 'r') as f:
             self.config = json.load(f)
@@ -36,6 +38,11 @@ class BiblicalTextPreprocessor:
         self.raw_dir = self.config['raw_data_dir']
         self.processed_dir = self.config['processed_data_dir']
         os.makedirs(self.processed_dir, exist_ok=True)
+        
+        self.use_sqlite = use_sqlite
+        if use_sqlite:
+            self.db_path = os.path.join(self.processed_dir, 'bible.db')
+            self._init_sqlite_db()
         
         # Compile common cleanup patterns
         self.cleanup_patterns = [
@@ -46,10 +53,122 @@ class BiblicalTextPreprocessor:
             (re.compile(r'\[.*?\]'), ''),                    # Remove square bracket content
         ]
         
-        
         # Regex for verse detection
         self.verse_pattern = re.compile(r'(\d+)[:\.](\d+)')
-    
+
+    def _init_sqlite_db(self):
+        """Initialize SQLite database with required schema."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bible_verses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    translation TEXT,
+                    book TEXT,
+                    chapter INTEGER,
+                    verse INTEGER,
+                    text TEXT,
+                    UNIQUE(translation, book, chapter, verse)
+                );
+            """)
+            
+            conn.commit()
+            logger.info(f"Initialized SQLite database at {self.db_path}")
+        except Exception as e:
+            logger.error(f"Error initializing SQLite database: {e}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def save_processed_bible_to_db(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
+        """Save processed Bible data to database."""
+        if self.use_sqlite:
+            self._save_to_sqlite(bible_data, translation)
+        else:
+            self._save_to_postgres(bible_data, translation)
+
+    def _save_to_sqlite(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
+        """Save processed Bible data to SQLite database."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Insert data
+            for book, chapters in bible_data.items():
+                for chapter, verses in chapters.items():
+                    for verse, text in verses.items():
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO bible_verses (translation, book, chapter, verse, text)
+                            VALUES (?, ?, ?, ?, ?);
+                        """, (translation, book, chapter, verse, text))
+
+            conn.commit()
+            logger.info(f"Saved processed Bible data for {translation} to SQLite database")
+        except Exception as e:
+            logger.error(f"Error saving to SQLite database: {e}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def _save_to_postgres(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
+        """Save processed Bible data to PostgreSQL database."""
+        try:
+            conn = psycopg2.connect(
+                host=os.getenv("DB_HOST", "localhost"),
+                port=os.getenv("DB_PORT", 5432),
+                user=os.getenv("DB_USER", "docker"),
+                password=os.getenv("DB_PASSWORD", "docker"),
+                database=os.getenv("DB_NAME", "bible")
+            )
+            cursor = conn.cursor()
+
+            # Create table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bible_verses (
+                    id SERIAL PRIMARY KEY,
+                    translation VARCHAR(10),
+                    book VARCHAR(50),
+                    chapter INTEGER,
+                    verse INTEGER,
+                    text TEXT,
+                    UNIQUE (translation, book, chapter, verse)
+                );
+            """)
+
+            # Insert data
+            for book, chapters in bible_data.items():
+                for chapter, verses in chapters.items():
+                    for verse, text in verses.items():
+                        cursor.execute(
+                            sql.SQL("""
+                                INSERT INTO bible_verses (translation, book, chapter, verse, text)
+                                VALUES (%s, %s, %s, %s, %s)
+                                ON CONFLICT (translation, book, chapter, verse)
+                                DO UPDATE SET text = EXCLUDED.text;
+                            """),
+                            [translation, book, chapter, verse, text]
+                        )
+
+            conn.commit()
+            logger.info(f"Saved processed Bible data for {translation} to PostgreSQL database")
+        except Exception as e:
+            logger.error(f"Error saving to PostgreSQL database: {e}")
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    # Other methods remain unchanged
     def normalize_text(self, text: str) -> str:
         """Basic text normalization."""
         # Normalize unicode forms
@@ -377,15 +496,6 @@ class BiblicalTextPreprocessor:
             logger.error(f"Error processing CSV commentary file {file_path}: {e}")
             return []
     
-    def save_processed_bible(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
-        """Save processed Bible data."""
-        output_path = os.path.join(self.processed_dir, f"bible_{translation.lower()}.json")
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(bible_data, f, indent=2)
-        
-        logger.info(f"Saved processed Bible data for {translation} to {output_path}")
-    
     def save_processed_commentaries(self, entries: List[Dict[str, Any]], source: str):
         """Save processed commentary data."""
         output_path = os.path.join(self.processed_dir, f"commentary_{source.lower().replace(' ', '_')}.json")
@@ -464,11 +574,53 @@ class BiblicalTextPreprocessor:
         
         return df
 
+    def generate_instruction_data(self, verse_aligned_df: pd.DataFrame) -> List[Dict[str, str]]:
+        """Generate instruction data for fine-tuning from verse-aligned dataset.
+        
+        Args:
+            verse_aligned_df: DataFrame from create_verse_aligned_dataset.
+        
+        Returns:
+            List of instruction examples: [{"instruction": ..., "input": ..., "output": ...}]
+        """
+        instructions = []
+        translation_cols = [col for col in verse_aligned_df.columns if col.startswith("text_")]
+        commentary_cols = [col for col in verse_aligned_df.columns if col.startswith("commentary_")]
+        
+        for _, row in verse_aligned_df.iterrows():
+            reference = row["reference"]
+            # Instruction 1: Explain the verse
+            for trans_col in translation_cols:
+                verse_text = row[trans_col]
+                if not verse_text:
+                    continue
+                for comm_col in commentary_cols:
+                    commentary = row[comm_col]
+                    if commentary:
+                        instructions.append({
+                            "instruction": "Explain the verse.",
+                            "input": f"{reference} ({trans_col.replace('text_', '')})",
+                            "output": commentary
+                        })
+            
+            # Instruction 2: Paraphrase the verse
+            if len(translation_cols) > 1:
+                trans1, trans2 = random.sample(translation_cols, 2)
+                instructions.append({
+                    "instruction": "Paraphrase the verse.",
+                    "input": f"{reference} ({trans1.replace('text_', '')})",
+                    "output": row[trans2]
+                })
+        
+        output_path = os.path.join(self.processed_dir, "instruction_data.json")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(instructions, f, indent=2)
+        logger.info(f"Generated {len(instructions)} instruction examples at {output_path}")
+        return instructions
+
 # ===================== Added Code: Training Data Pipeline =====================
 # The following code integrates tokenizer-based data preparation for training.
 # It provides a dataset class for instruction fine-tuning and a helper to create DataLoaders.
-
-
 
 class BibleInstructionDataset(Dataset):
     """Dataset for instruction fine-tuning with biblical data."""
@@ -576,6 +728,7 @@ def create_dataloaders(
     )
     
     return train_loader, val_loader
+
 def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
     """
     Load processed datasets and return as BiblicalDataset instances.
@@ -609,8 +762,6 @@ def load_datasets(data_path: str) -> Tuple[BiblicalDataset, BiblicalDataset]:
 
     return train_dataset, val_dataset
 
-
-
 class BiblicalDataset(Dataset):
     """Custom Dataset for biblical data."""
     
@@ -636,50 +787,6 @@ class BiblicalDataset(Dataset):
             'labels': self.labels[idx],
             'attention_mask': self.attention_mask[idx]
         }
-        def generate_instruction_data(self, verse_aligned_df: pd.DataFrame) -> List[Dict[str, str]]:
-    """Generate instruction data for fine-tuning from verse-aligned dataset.
-        
-    Args:
-        verse_aligned_df: DataFrame from create_verse_aligned_dataset.
-        
-    Returns:
-        List of instruction examples: [{"instruction": ..., "input": ..., "output": ...}]
-     """
-    instructions = []
-    translation_cols = [col for col in verse_aligned_df.columns if col.startswith("text_")]
-    commentary_cols = [col for col in verse_aligned_df.columns if col.startswith("commentary_")]
-    
-    for _, row in verse_aligned_df.iterrows():
-        reference = row["reference"]
-        # Instruction 1: Explain the verse
-        for trans_col in translation_cols:
-            verse_text = row[trans_col]
-            if not verse_text:
-                continue
-            for comm_col in commentary_cols:
-                commentary = row[comm_col]
-                if commentary:
-                    instructions.append({
-                        "instruction": "Explain the verse.",
-                        "input": f"{reference} ({trans_col.replace('text_', '')})",
-                        "output": commentary
-                    })
-        
-        # Instruction 2: Paraphrase the verse
-        if len(translation_cols) > 1:
-            trans1, trans2 = random.sample(translation_cols, 2)
-            instructions.append({
-                "instruction": "Paraphrase the verse.",
-                "input": f"{reference} ({trans1.replace('text_', '')})",
-                "output": row[trans2]
-            })
-    
-    output_path = os.path.join(self.processed_dir, "instruction_data.json")
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(instructions, f, indent=2)
-    logger.info(f"Generated {len(instructions)} instruction examples at {output_path}")
-    return instructions
-
 
 # ===================== End of Added Code =====================
 
@@ -696,7 +803,7 @@ if __name__ == "__main__":
             file_path = os.path.join(bibles_dir, bible_file)
             bible_data = preprocessor.process_bible_file(file_path, translation)
             bibles[translation] = bible_data
-            preprocessor.save_processed_bible(bible_data, translation)
+            preprocessor.save_processed_bible_to_db(bible_data, translation)
     
     commentaries = {}
     commentaries_dir = os.path.join(preprocessor.raw_dir, 'commentaries')
@@ -711,58 +818,3 @@ if __name__ == "__main__":
     # Create verse-aligned dataset and instruction data
     verse_aligned_df = preprocessor.create_verse_aligned_dataset(bibles, commentaries)
     instruction_data = preprocessor.generate_instruction_data(verse_aligned_df)
-
-#Update preprocessing.py to Use PostgreSQL
-# In src/data/preprocessing.py
-import psycopg2
-from psycopg2 import sql
-
-def save_processed_bible_to_db(self, bible_data: Dict[str, Dict[int, Dict[int, str]]], translation: str):
-    """Save processed Bible data to PostgreSQL database."""
-    try:
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=os.getenv("DB_PORT", 5432),
-            user=os.getenv("DB_USER", "docker"),
-            password=os.getenv("DB_PASSWORD", "docker"),
-            database=os.getenv("DB_NAME", "bible")
-        )
-        cursor = conn.cursor()
-
-        # Create table if it doesn't exist
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS bible_verses (
-                id SERIAL PRIMARY KEY,
-                translation VARCHAR(10),
-                book VARCHAR(50),
-                chapter INTEGER,
-                verse INTEGER,
-                text TEXT,
-                UNIQUE (translation, book, chapter, verse)
-            );
-        """)
-
-        # Insert data
-        for book, chapters in bible_data.items():
-            for chapter, verses in chapters.items():
-                for verse, text in verses.items():
-                    cursor.execute(
-                        sql.SQL("""
-                            INSERT INTO bible_verses (translation, book, chapter, verse, text)
-                            VALUES (%s, %s, %s, %s, %s)
-                            ON CONFLICT (translation, book, chapter, verse)
-                            DO UPDATE SET text = EXCLUDED.text;
-                        """),
-                        [translation, book, chapter, verse, text]
-                    )
-
-        conn.commit()
-        logger.info(f"Saved processed Bible data for {translation} to PostgreSQL database")
-    except Exception as e:
-        logger.error(f"Error saving to database: {e}")
-        raise
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
