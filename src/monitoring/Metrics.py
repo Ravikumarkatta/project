@@ -7,6 +7,7 @@ Metrics are exposed via Prometheus for monitoring and alerting.
 """
 
 import time
+import torch
 from typing import Dict, Optional, List
 import psutil
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
@@ -45,7 +46,7 @@ class MetricsCollector:
         )
         self.cpu_usage = Gauge("bibleai_cpu_usage_percent", "CPU usage percentage")
         self.memory_usage = Gauge("bibleai_memory_usage_mb", "Memory usage in MB")
-        self.verse_accuracy = Gauge("bibleai_verse_prediction_accuracy","Accuracy of verse predictions (0 to 1)")
+        self.verse_accuracy = Gauge("bibleai_verse_prediction_accuracy", "Accuracy of verse predictions (0 to 1)")
 
         # Start the Prometheus HTTP server to expose metrics
         try:
@@ -119,21 +120,22 @@ class MetricsCollector:
             )
         except Exception as e:
             logger.error(f"Error tracking system resources: {e}")
-            def track_verse_accuracy(self, verse_logits: torch.Tensor, true_verse_indices: torch.Tensor) -> None:
-    """
-    Track the accuracy of verse predictions.
 
-    Args:
-        verse_logits (torch.Tensor): Predicted verse logits [batch_size, seq_len, num_verse_types].
-        true_verse_indices (torch.Tensor): True verse indices [batch_size, seq_len].
-    """
-    try:
-        predictions = verse_logits.argmax(dim=-1)  # [batch_size, seq_len]
-        correct = (predictions == true_verse_indices).float().mean().item()
-        self.verse_accuracy.set(correct)
-        logger.debug(f"Verse prediction accuracy: {correct:.2f}")
-    except Exception as e:
-        logger.error(f"Error tracking verse accuracy: {e}")
+    def track_verse_accuracy(self, verse_logits: torch.Tensor, true_verse_indices: torch.Tensor) -> None:
+        """
+        Track the accuracy of verse predictions.
+
+        Args:
+            verse_logits (torch.Tensor): Predicted verse logits [batch_size, seq_len, num_verse_types].
+            true_verse_indices (torch.Tensor): True verse indices [batch_size, seq_len].
+        """
+        try:
+            predictions = verse_logits.argmax(dim=-1)  # [batch_size, seq_len]
+            correct = (predictions == true_verse_indices).float().mean().item()
+            self.verse_accuracy.set(correct)
+            logger.debug(f"Verse prediction accuracy: {correct:.2f}")
+        except Exception as e:
+            logger.error(f"Error tracking verse accuracy: {e}")
 
 
 # Example usage
