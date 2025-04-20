@@ -1,0 +1,35 @@
+site_name: Bible AI Documentation
+site_description: Documentation for the Bible AI Analysis and Study Tool
+repo_url: https://github.com/yourusername/bible-ai
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          rendering:
+            show_source: true
+            show_root_heading: true
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Getting Started: user_guide/getting_started.md
+      - Bible Study Features: user_guide/bible_study.md
+      - Theological Features: user_guide/theological_features.md
+  - Developer Guide:
+      - Architecture: developer_guide/architecture.md
+      - Contributing: developer_guide/contributing.md
+      - Extending the Model: developer_guide/extending_model.md
+  - API Reference:
+      - API Documentation: api/api.md
+  - Theological Basis: theological_basis.md
