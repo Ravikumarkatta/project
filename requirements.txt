@@ -1,10 +1,12 @@
 ﻿# Note: Requires Python 3.12.0 (install via pyenv, python.org, or system package manager)
 
 # Web Framework (src/serve/api.py)
-fastapi  # Latest stable assumed for March 2025, optimized for 3.12
-uvicorn # Latest ASGI server, assumed update by March 2025
+fastapi>=0.68.0  # Latest stable assumed for March 2025, optimized for 3.12
+uvicorn>=0.15.0 # Latest ASGI server, assumed update by March 2025
 starlette  # Matches FastAPI, assumed minor bump
-pydantic  # Latest Pydantic 2.x, assumed update for 3.12
+pydantic>=1.8.2  # Latest Pydantic 2.x, assumed update for 3.12
+python-multipart>=0.0.5 # Minor update assumed for 3.12
+aiofiles>=0.7.0
 
 # Machine Learning and Model Training (src/model/, src/training/)
 torch # Latest PyTorch, assumed release by early 2025, 3.12 compatible
@@ -20,27 +22,38 @@ beautifulsoup4  # Latest, sufficient for parsing
 # Security (src/serve/api.py, src/utils/security.py)
 pyjwt  # Latest stable, secure
 passlib[bcrypt] # Stable password hashing
-python-multipart # Minor update assumed for 3.12
 
 # Logging and Monitoring (src/utils/logger.py, src/monitoring/)
-prometheus-client  # Latest, assumed minor update by March 2025
+prometheus-client>=0.11.0  # Latest, assumed minor update by March 2025
+psutil>=5.8.0
+statsd>=3.3.0
 
 # File and Path Handling
 pathlib2  # Stable, compatible with 3.12 (stdlib pathlib sufficient, kept for consistency)
 
 # Testing and Development Tools
-pytest  # Latest stable, supports 3.12
-pytest-asyncio  # Latest async testing, 3.12 compatible
-httpx  # Latest HTTP client, stable
-flake8  # Linting, stable
-mypy  # Latest static typing, assumed update for 3.12
-black  # Latest formatter, assumed update by March 2025
+pytest>=7.0.0  # Latest stable, supports 3.12
+pytest-cov>=2.12.0
+pytest-asyncio>=0.15.0  # Latest async testing, 3.12 compatible
+httpx>=0.18.0  # Latest HTTP client, stable
+flake8>=4.0.0  # Linting, stable
+mypy>=0.910  # Latest static typing, assumed update for 3.12
+black>=22.0.0  # Latest formatter, assumed update by March 2025
 ruff # Modern linter/formatter, rising star in 2025
-isort  # Import sorting, latest stable
+isort>=5.9.0  # Import sorting, latest stable
+pre-commit>=2.15.0
 
 # Deployment
 gunicorn  # Latest WSGI server, stable
 hypercorn  # Latest ASGI server for advanced async, assumed update
+
+# Documentation
+mkdocs>=1.2.0
+mkdocs-material>=7.2.0
+mkdocstrings>=0.15.0
+
+# Development tools
+python-dotenv>=0.19.0
 
 # Optional GPU Support (uncomment for GPU, adjust CUDA version for late 2025)
 # torch==2.5.0+cu124  # PyTorch with CUDA 12.4 (assumed latest by late 2025)

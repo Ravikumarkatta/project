@@ -1,14 +1,16 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response
 from fastapi.responses import JSONResponse
 import uvicorn
 import os
 import json
 import re
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from src.bible_manager.bible_handler import BibleHandler
 from src.bible_manager.verse_reference import VerseReferenceDetector, VerseReference
+import psutil
+import time
 
 # Setup logging
 logging.basicConfig(
@@ -87,6 +89,23 @@ class TextAnalysisResponse(BaseModel):
     references: List[VerseReference]
     formatted_references: List[str]
 
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    uptime: float
+    bible_data_loaded: bool
+
+class MetricsResponse(BaseModel):
+    cpu_usage: float
+    memory_usage: float
+    active_connections: int
+    api_requests_total: int
+    api_request_duration_seconds: Dict[str, float]
+
+start_time = time.time()
+request_count = 0
+request_durations: Dict[str, List[float]] = {}
+
 @app.get("/")
 async def home():
     """
@@ -104,7 +123,9 @@ async def home():
             "/api/v1/bible/upload": "Upload a new Bible version",
             "/api/v1/bible/download/{version}": "Download a specific Bible version",
             "/api/v1/bible/versions": "List all available Bible versions",
-            "/api/v1/analyze/references": "Analyze text to detect Bible verse references"
+            "/api/v1/analyze/references": "Analyze text to detect Bible verse references",
+            "/health": "Health check endpoint",
+            "/metrics": "Metrics endpoint"
         }
     }
 
@@ -320,6 +341,62 @@ async def analyze_verse_references(request: TextAnalysisRequest):
     except Exception as e:
         logger.error(f"Error analyzing verse references: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """
+    Health check endpoint for monitoring.
+    """
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "uptime": time.time() - start_time,
+        "bible_data_loaded": bool(bible_data)
+    }
+
+@app.get("/metrics", response_model=MetricsResponse)
+async def metrics():
+    """
+    Metrics endpoint for monitoring system performance.
+    """
+    cpu_percent = psutil.cpu_percent()
+    memory = psutil.Process().memory_info()
+    memory_percent = memory.rss / psutil.virtual_memory().total * 100
+    
+    # Calculate average request durations
+    avg_durations = {
+        endpoint: sum(durations) / len(durations) if durations else 0
+        for endpoint, durations in request_durations.items()
+    }
+    
+    return {
+        "cpu_usage": cpu_percent,
+        "memory_usage": memory_percent,
+        "active_connections": len(psutil.Process().connections()),
+        "api_requests_total": request_count,
+        "api_request_duration_seconds": avg_durations
+    }
+
+@app.middleware("http")
+async def track_metrics(request, call_next):
+    global request_count
+    request_count += 1
+    
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    
+    # Track request duration by endpoint
+    endpoint = request.url.path
+    if endpoint not in request_durations:
+        request_durations[endpoint] = []
+    request_durations[endpoint].append(duration)
+    
+    # Keep only last 1000 requests per endpoint
+    if len(request_durations[endpoint]) > 1000:
+        request_durations[endpoint] = request_durations[endpoint][-1000:]
+    
+    return response
 
 if __name__ == "__main__":
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
