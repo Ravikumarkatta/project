@@ -152,7 +152,8 @@ jobs:
           ls -la build/
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
+
         if: success()
         with:
           name: frontend-build
@@ -161,7 +162,7 @@ jobs:
         continue-on-error: true
         
       - name: Retry artifact upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: frontend-build
@@ -242,7 +243,7 @@ jobs:
           twine check dist/*
       
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: success()
         with:
           name: dist
@@ -251,7 +252,7 @@ jobs:
         continue-on-error: true
       
       - name: Retry package upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: dist

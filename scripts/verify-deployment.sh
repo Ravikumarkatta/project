@@ -1,33 +1,41 @@
 #!/bin/bash
 set -e
 
+DEPLOY_URL=$1
 
-URL=$1
-if [ -z "$URL" ]; then
-    echo "Usage: $0 <deployment-url>"
+if [ -z "$DEPLOY_URL" ]; then
+    echo "❌ No deployment URL provided"
     exit 1
 fi
 
-echo "Verifying deployment at $URL..."
+echo "🔍 Verifying deployment at $DEPLOY_URL..."
 
-# Wait for services to be ready
-echo "Waiting for services to be ready..."
-for i in {1..30}; do
-    if curl -f "${URL}/health" 2>/dev/null; then
-        echo "✅ Health check passed"
-        
-        # Additional verification
-        if curl -f "${URL}/api/v1/status" 2>/dev/null | grep -q '"status":"healthy"'; then
-            echo "✅ API status check passed"
-            echo "Deployment verified successfully"
-            exit 0
-        fi
+# Wait for service to be available
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+while true; do
+    if curl -s -f "${DEPLOY_URL}/health" > /dev/null; then
+        echo "✅ Service is responding"
+        break
     fi
-    echo "Waiting... ($i/30)"
+
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ Service failed to respond after $MAX_RETRIES attempts"
+        exit 1
+    fi
+
+    echo "⏳ Waiting for service to respond (attempt $RETRY_COUNT/$MAX_RETRIES)..."
     sleep 10
 done
 
-echo "❌ Deployment verification failed"
-echo "Last known status:"
-curl -v "${URL}/health" || true
-exit 1
+# Verify API endpoints
+echo "🔍 Checking API endpoints..."
+curl -s -f "${DEPLOY_URL}/api/v1/bible/versions" > /dev/null || { echo "❌ Bible versions endpoint failed"; exit 1; }
+
+# Verify frontend
+echo "🔍 Checking frontend..."
+curl -s -f "${DEPLOY_URL}" | grep -q "Bible-AI" || { echo "❌ Frontend verification failed"; exit 1; }
+
+echo "✅ Deployment verification successful"
