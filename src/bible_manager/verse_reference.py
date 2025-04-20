@@ -168,4 +168,4 @@ class VerseReferenceDetector:
         elif ref.end_chapter and ref.end_verse:
             return f"{ref.book} {ref.chapter}:{ref.verse}-{ref.end_chapter}:{ref.end_verse}"
         else:
-            return f"{ref.book} {ref.chapter}:{ref.verse}"}
+            return f"{ref.book} {ref.chapter}:{ref.verse}"
