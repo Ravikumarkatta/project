@@ -101,5 +101,40 @@
   "raw_data_path": "data/raw",
   "processed_data_path": "data/processed",
   "embeddings_path": "data/embeddings",
-  "valid_translations": ["kjv", "asv", "web"]
+  "valid_translations": ["kjv", "asv", "web"],
+  "data_dir": "data",
+  "raw_data_dir": "data/raw",
+  "processed_data_dir": "data/processed",
+  "embedding": {
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "max_length": 512,
+    "batch_size": 32,
+    "pooling_strategy": "mean",
+    "normalize": true,
+    "cache_dir": "data/embeddings/cache"
+  },
+  "preprocessing": {
+    "clean_patterns": [
+      ["\\s+", " "],
+      ["["""]", "\""],
+      ["[''']", "'"],
+      ["†|‡|\\*|\\#|¶", ""],
+      ["\\[.*?\\]", ""]
+    ],
+    "verse_pattern": "(\\d+)[:\\.](\\d+)",
+    "min_verse_length": 10,
+    "max_verse_length": 1000
+  },
+  "validation": {
+    "min_verses_per_book": 10,
+    "required_books": [
+      "Genesis",
+      "Exodus",
+      "Psalms",
+      "Matthew",
+      "John",
+      "Romans",
+      "Revelation"
+    ]
+  }
 }

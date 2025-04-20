@@ -7,17 +7,23 @@ starlette  # Matches FastAPI, assumed minor bump
 pydantic>=1.8.2  # Latest Pydantic 2.x, assumed update for 3.12
 python-multipart>=0.0.5 # Minor update assumed for 3.12
 aiofiles>=0.7.0
+aiohttp>=3.8.0
 
 # Machine Learning and Model Training (src/model/, src/training/)
-torch # Latest PyTorch, assumed release by early 2025, 3.12 compatible
+torch>=1.9.0  # Latest PyTorch, assumed release by early 2025, 3.12 compatible
 torchvision  # Matches torch, assumed update
-transformers # Latest Hugging Face transformers, assumed update
-numpy  # Latest NumPy, minor update assumed for 3.12
+transformers>=4.30.0 # Latest Hugging Face transformers, assumed update
+numpy>=1.21.0  # Latest NumPy, minor update assumed for 3.12
+matplotlib>=3.8.0  # For visualization and plotting
+sentence-transformers>=2.2.0
 
 # Data Processing and Utilities (src/data/)
-pandas # Latest stable, minor update assumed
+pandas>=1.3.0 # Latest stable, minor update assumed
 requests  # Stable, no major update expected
-beautifulsoup4  # Latest, sufficient for parsing
+beautifulsoup4>=4.9.3  # Latest, sufficient for parsing
+lxml>=4.9.0
+h5py>=3.8.0
+tqdm>=4.65.0
 
 # Security (src/serve/api.py, src/utils/security.py)
 pyjwt  # Latest stable, secure

@@ -7,6 +7,7 @@ from typing import Dict, List, Callable, Optional, Union, Any
 from collections import defaultdict
 import logging
 import os
+import sys
 from threading import Thread
 from queue import Queue
 import json
@@ -16,7 +17,7 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 
 # Project-specific imports
-from src.model.architecture import BiblicalTransformer
+from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfig
 from src.data.dataset import BibleDataset
 from src.theology.validator import TheologicalValidator
 from src.utils.logger import setup_logger
@@ -24,7 +25,6 @@ from src.utils.logger import setup_logger
 # Project root for absolute imports
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if PROJECT_ROOT not in sys.path:
-    import sys
     sys.path.insert(0, PROJECT_ROOT)
 
 # Setup logging
