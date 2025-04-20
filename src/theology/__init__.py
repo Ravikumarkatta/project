@@ -6,16 +6,16 @@ Handles theological validation, doctrines, denominational variations, controvers
 and pastoral sensitivity to ensure theologically sound outputs.
 """
 
-from .validator import TheologicalValidator
-from .doctrines import DoctrineChecker
-from .denominational import DenominationalAdjuster
 from .controversial import ControversialHandler
+from .denominational import DenominationalAdjuster
+from .doctrines import DoctrineChecker
 from .pastoral import PastoralSensitivity
+from .validator import TheologicalValidator
 
 __all__ = [
     "TheologicalValidator",
     "DoctrineChecker",
     "DenominationalAdjuster",
     "ControversialHandler",
-    "PastoralSensitivity"
+    "PastoralSensitivity",
 ]

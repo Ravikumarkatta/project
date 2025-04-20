@@ -7,19 +7,20 @@ theological terms, and handling special cases like Hebrew/Greek terms. It integr
 HuggingFace tokenizers and supports the data pipeline for model training.
 """
 
-import re
 import json
 import logging
-from typing import Dict, List, Tuple, Optional, Union
-from transformers import PreTrainedTokenizer, AutoTokenizer
-from nltk.tokenize import word_tokenize
+import re
+from typing import Dict, List, Optional, Tuple, Union
+
 import nltk
+from nltk.tokenize import word_tokenize
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 # NLTK setup
 try:
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find("tokenizers/punkt")
 except LookupError:
-    nltk.download('punkt', quiet=True)
+    nltk.download("punkt", quiet=True)
 
 # Project-specific imports
 try:
@@ -38,7 +39,7 @@ class BiblicalTokenizer:
         self,
         base_tokenizer_name: str = "bert-base-uncased",
         config_path: Optional[str] = "config/data_config.json",
-        max_length: int = 512
+        max_length: int = 512,
     ):
         """
         Initialize the tokenizer with a base HuggingFace tokenizer and custom rules.
@@ -51,30 +52,47 @@ class BiblicalTokenizer:
         self.base_tokenizer = AutoTokenizer.from_pretrained(base_tokenizer_name)
         self.max_length = max_length
         self.config = self._load_config(config_path)
-        
+
         # Compile regex patterns for verse references and special terms
-        self.verse_pattern = re.compile(r'\[(\d+:\d+)\]')  # From preprocessing.py: [chapter:verse]
+        self.verse_pattern = re.compile(
+            r"\[(\d+:\d+)\]"
+        )  # From preprocessing.py: [chapter:verse]
         self.book_chapter_verse_pattern = re.compile(
-            r'([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)(?:-(\d+))?'
+            r"([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)(?:-(\d+))?"
         )  # e.g., "John 3:16" or "John 3:16-18"
         self.theological_terms = set(self.config.get("theological_terms", []))
-        self.special_terms = self.config.get("special_terms", {"YHWH", "JHVH", "LORD", "Son of Man"})
-        logger.info("Initialized BiblicalTokenizer with base tokenizer %s", base_tokenizer_name)
+        self.special_terms = self.config.get(
+            "special_terms", {"YHWH", "JHVH", "LORD", "Son of Man"}
+        )
+        logger.info(
+            "Initialized BiblicalTokenizer with base tokenizer %s", base_tokenizer_name
+        )
 
     def _load_config(self, config_path: str) -> Dict:
         """Load tokenization configuration from file."""
         default_config = {
             "theological_terms": [
-                "god", "jesus", "christ", "holy spirit", "messiah", "sin", "salvation",
-                "grace", "faith", "prophet", "apostle", "gospel", "covenant"
+                "god",
+                "jesus",
+                "christ",
+                "holy spirit",
+                "messiah",
+                "sin",
+                "salvation",
+                "grace",
+                "faith",
+                "prophet",
+                "apostle",
+                "gospel",
+                "covenant",
             ],
             "special_terms": {"YHWH", "JHVH", "LORD", "Son of Man"},
             "preserve_verse_references": True,
-            "handle_special_terms": True
+            "handle_special_terms": True,
         }
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)
                 default_config.update(config)
                 logger.info("Loaded tokenization config from %s", config_path)
@@ -113,12 +131,14 @@ class BiblicalTokenizer:
         # Preserve theological and special terms
         for term in self.theological_terms | self.special_terms:
             placeholder = f"__TERM_{len(placeholder_map)}__"
-            text = re.sub(fr'\b{term}\b', placeholder, text, flags=re.IGNORECASE)
+            text = re.sub(rf"\b{term}\b", placeholder, text, flags=re.IGNORECASE)
             placeholder_map[placeholder] = term
 
         return text, placeholder_map
 
-    def _restore_special_terms(self, tokens: List[str], placeholder_map: Dict[str, str]) -> List[str]:
+    def _restore_special_terms(
+        self, tokens: List[str], placeholder_map: Dict[str, str]
+    ) -> List[str]:
         """
         Restore special terms from placeholders after tokenization.
 
@@ -143,7 +163,9 @@ class BiblicalTokenizer:
                 restored_tokens.append(token)
         return restored_tokens
 
-    def tokenize(self, text: str, return_tensors: str = "pt") -> Dict[str, Union[torch.Tensor, List]]:
+    def tokenize(
+        self, text: str, return_tensors: str = "pt"
+    ) -> Dict[str, Union[torch.Tensor, List]]:
         """
         Tokenize text while preserving verse references and theological terms.
 
@@ -163,7 +185,7 @@ class BiblicalTokenizer:
             max_length=self.max_length,
             padding="max_length",
             truncation=True,
-            return_tensors=None  # We'll handle tensor conversion later
+            return_tensors=None,  # We'll handle tensor conversion later
         )
 
         # Step 3: Restore special terms in the tokenized output
@@ -184,7 +206,7 @@ class BiblicalTokenizer:
                 restored_ids.append(token_id)
 
         # Truncate to max_length if necessary
-        restored_ids = restored_ids[:self.max_length]
+        restored_ids = restored_ids[: self.max_length]
         attention_mask = [1] * len(restored_ids)
 
         # Pad to max_length
@@ -196,25 +218,18 @@ class BiblicalTokenizer:
         if return_tensors == "pt":
             return {
                 "input_ids": torch.tensor(restored_ids, dtype=torch.long),
-                "attention_mask": torch.tensor(attention_mask, dtype=torch.long)
+                "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
             }
         elif return_tensors == "np":
             return {
                 "input_ids": np.array(restored_ids, dtype=np.int64),
-                "attention_mask": np.array(attention_mask, dtype=np.int64)
+                "attention_mask": np.array(attention_mask, dtype=np.int64),
             }
         else:
-            return {
-                "input_ids": restored_ids,
-                "attention_mask": attention_mask
-            }
+            return {"input_ids": restored_ids, "attention_mask": attention_mask}
 
     def tokenize_instruction_data(
-        self,
-        instruction: str,
-        input_text: str,
-        output: str,
-        return_tensors: str = "pt"
+        self, instruction: str, input_text: str, output: str, return_tensors: str = "pt"
     ) -> Dict[str, torch.Tensor]:
         """
         Tokenize instruction data for fine-tuning (used by BibleInstructionDataset).
@@ -235,16 +250,18 @@ class BiblicalTokenizer:
 
         # Combine input_ids: prompt + output
         input_ids = prompt_encoding["input_ids"] + output_encoding["input_ids"]
-        input_ids = input_ids[:self.max_length]
+        input_ids = input_ids[: self.max_length]
 
         # Combine attention masks
-        attention_mask = prompt_encoding["attention_mask"] + output_encoding["attention_mask"]
-        attention_mask = attention_mask[:self.max_length]
+        attention_mask = (
+            prompt_encoding["attention_mask"] + output_encoding["attention_mask"]
+        )
+        attention_mask = attention_mask[: self.max_length]
 
         # Create labels: -100 for prompt tokens, actual IDs for output tokens
         prompt_length = len(prompt_encoding["input_ids"])
         labels = [-100] * prompt_length + output_encoding["input_ids"]
-        labels = labels[:self.max_length]
+        labels = labels[: self.max_length]
 
         # Pad to max_length
         padding_length = self.max_length - len(input_ids)
@@ -256,19 +273,19 @@ class BiblicalTokenizer:
             return {
                 "input_ids": torch.tensor(input_ids, dtype=torch.long),
                 "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-                "labels": torch.tensor(labels, dtype=torch.long)
+                "labels": torch.tensor(labels, dtype=torch.long),
             }
         elif return_tensors == "np":
             return {
                 "input_ids": np.array(input_ids, dtype=np.int64),
                 "attention_mask": np.array(attention_mask, dtype=np.int64),
-                "labels": np.array(labels, dtype=np.int64)
+                "labels": np.array(labels, dtype=np.int64),
             }
         else:
             return {
                 "input_ids": input_ids,
                 "attention_mask": attention_mask,
-                "labels": labels
+                "labels": labels,
             }
 
     def detokenize(self, input_ids: Union[List[int], torch.Tensor]) -> str:
@@ -285,7 +302,9 @@ class BiblicalTokenizer:
             input_ids = input_ids.tolist()
 
         # Remove padding tokens
-        input_ids = [id_ for id_ in input_ids if id_ != self.base_tokenizer.pad_token_id]
+        input_ids = [
+            id_ for id_ in input_ids if id_ != self.base_tokenizer.pad_token_id
+        ]
 
         # Decode tokens
         text = self.base_tokenizer.decode(input_ids, skip_special_tokens=True)

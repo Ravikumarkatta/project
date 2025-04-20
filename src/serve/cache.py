@@ -7,11 +7,13 @@ Supports Redis for distributed caching with fallback to in-memory storage.
 """
 
 import json
-from typing import Any, Optional, Dict
-from threading import Lock
-import redis
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from threading import Lock
+from typing import Any, Dict, Optional
+
+import redis
+
 from src.utils.logger import get_logger
 
 logger = get_logger("Cache")
@@ -20,7 +22,13 @@ logger = get_logger("Cache")
 class Cache:
     """Manages caching of API responses with Redis or in-memory storage."""
 
-    def __init__(self, ttl: int = 3600, redis_host: str = "localhost", redis_port: int = 6379, redis_db: int = 0) -> None:
+    def __init__(
+        self,
+        ttl: int = 3600,
+        redis_host: str = "localhost",
+        redis_port: int = 6379,
+        redis_db: int = 0,
+    ) -> None:
         """
         Initialize the cache system.
 
@@ -49,16 +57,22 @@ class Cache:
                 port=redis_port,
                 db=redis_db,
                 decode_responses=True,
-                socket_timeout=5
+                socket_timeout=5,
             )
             # Test connection
             self._redis_client.ping()
             self._use_redis = True
-            self.logger.info(f"Connected to Redis at {redis_host}:{redis_port}, db={redis_db}")
+            self.logger.info(
+                f"Connected to Redis at {redis_host}:{redis_port}, db={redis_db}"
+            )
         except redis.ConnectionError as e:
-            self.logger.warning(f"Failed to connect to Redis: {e}. Falling back to in-memory cache.")
+            self.logger.warning(
+                f"Failed to connect to Redis: {e}. Falling back to in-memory cache."
+            )
         except Exception as e:
-            self.logger.error(f"Unexpected error initializing Redis: {e}. Using in-memory cache.")
+            self.logger.error(
+                f"Unexpected error initializing Redis: {e}. Using in-memory cache."
+            )
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
         """
@@ -126,7 +140,9 @@ class Cache:
             self.logger.error(f"Invalid cache key: {key}")
             raise ValueError("Cache key must be a non-empty string")
         if not isinstance(value, dict):
-            self.logger.error(f"Invalid cache value type: {type(value)}. Must be a dict.")
+            self.logger.error(
+                f"Invalid cache value type: {type(value)}. Must be a dict."
+            )
             raise ValueError("Cache value must be a dictionary")
 
         try:
@@ -144,7 +160,7 @@ class Cache:
                 with self._lock:
                     self._memory_cache[key] = {
                         "value": value,
-                        "expiry": datetime.utcnow().timestamp() + self.ttl
+                        "expiry": datetime.utcnow().timestamp() + self.ttl,
                     }
                     self.logger.debug(f"Cached {key} in memory with TTL {self.ttl}s")
                     return True

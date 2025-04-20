@@ -3,19 +3,20 @@ BibleUploader Module for Bible-AI
 Handles uploading, validating, converting, and storing Bible texts.
 """
 
-import os
 import json
+import os
 import shutil
 import tempfile
-from typing import Optional, Dict, Any, Tuple, List
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from src.utils.logger import get_logger
 except ImportError:
     import logging
+
     logging.basicConfig(level=logging.INFO)
     get_logger = lambda name: logging.getLogger(name)
 
@@ -25,16 +26,22 @@ from src.theology.validator import TheologicalValidator
 
 logger = get_logger("BibleUploader")
 
+
 class BibleUploader:
-    def __init__(self, config_path: Optional[str] = None, 
-                 upload_dir: str = "data/uploads", 
-                 max_file_size_mb: int = 100):
+    def __init__(
+        self,
+        config_path: Optional[str] = None,
+        upload_dir: str = "data/uploads",
+        max_file_size_mb: int = 100,
+    ):
         self.upload_dir = Path(upload_dir).resolve()
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.max_file_size_mb = max_file_size_mb
         self.config = self._load_config(config_path or "config/bible_sources.json")
         self.converter = BibleConverter()
-        self.storage = BibleStorage(config_path=config_path or "config/bible_sources.json")
+        self.storage = BibleStorage(
+            config_path=config_path or "config/bible_sources.json"
+        )
         self.validator = TheologicalValidator()  # Let it use default config path
         default_formats = [".usfm", ".osis", ".json", ".txt", ".csv"]
         config_formats = self.config.get("converter", {}).get("supported_formats", [])
@@ -47,9 +54,9 @@ class BibleUploader:
         if not config_path or not os.path.exists(config_path):
             logger.warning(f"Config path {config_path} not found, using defaults")
             return default_config
-            
+
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
             default_config.update(config)
             logger.info(f"Loaded config from {config_path}")
@@ -61,39 +68,42 @@ class BibleUploader:
             raise
         return default_config
 
-    def _convert_download_format_to_standard(self, bible_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_download_format_to_standard(
+        self, bible_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         if not isinstance(bible_data, dict) or "books" in bible_data:
             return bible_data
 
         standard_data = {"books": [], "metadata": bible_data.get("metadata", {})}
-        
+
         try:
             for book_name, chapters in bible_data.items():
                 if book_name == "metadata":
                     continue
-                    
+
                 book = {
                     "name": book_name,
                     "code": book_name[:3].upper(),
-                    "chapters": []
+                    "chapters": [],
                 }
-                
+
                 for chapter_num, verses in chapters.items():
                     chapter = {"number": str(chapter_num), "verses": []}
                     for verse_num, text in verses.items():
-                        chapter["verses"].append({
-                            "number": str(verse_num),
-                            "text": str(text).strip()
-                        })
+                        chapter["verses"].append(
+                            {"number": str(verse_num), "text": str(text).strip()}
+                        )
                     book["chapters"].append(chapter)
-                    
+
                 standard_data["books"].append(book)
             return standard_data
         except (AttributeError, TypeError) as e:
             logger.error(f"Format conversion failed: {str(e)}")
             raise ValueError(f"Invalid Bible data format: {str(e)}")
 
-    def _flatten_for_validation(self, bible_data: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _flatten_for_validation(
+        self, bible_data: Dict[str, Any]
+    ) -> List[Dict[str, str]]:
         """Flatten Bible data into a list of verses for validation."""
         verses = []
         try:
@@ -102,17 +112,23 @@ class BibleUploader:
                 for chapter in book.get("chapters", []):
                     ch_num = chapter.get("number", "0")
                     for verse in chapter.get("verses", []):
-                        verses.append({
-                            "number": f"{book_id} {ch_num}:{verse.get('number', '0')}",
-                            "text": verse.get("text", "")
-                        })
+                        verses.append(
+                            {
+                                "number": f"{book_id} {ch_num}:{verse.get('number', '0')}",
+                                "text": verse.get("text", ""),
+                            }
+                        )
             return verses
         except Exception as e:
             logger.error(f"Flattening failed: {str(e)}")
             return []
 
-    def upload_file(self, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
-        logger.debug(f"Uploading file: {file_path}, supported formats: {self.supported_formats}")
+    def upload_file(
+        self, file_path: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> Tuple[bool, str]:
+        logger.debug(
+            f"Uploading file: {file_path}, supported formats: {self.supported_formats}"
+        )
         file_path = Path(file_path).resolve()
         if not file_path.exists():
             logger.error(f"File not found: {file_path}")
@@ -134,12 +150,14 @@ class BibleUploader:
                 shutil.copy(file_path, temp_file_path)
                 logger.info(f"Copied file to: {temp_file_path}")
 
-                if file_ext == '.json':
-                    with temp_file_path.open('r', encoding='utf-8') as f:
+                if file_ext == ".json":
+                    with temp_file_path.open("r", encoding="utf-8") as f:
                         bible_data = json.load(f)
-                    input_format = 'json'
+                    input_format = "json"
                     if "books" not in bible_data:
-                        bible_data = self._convert_download_format_to_standard(bible_data)
+                        bible_data = self._convert_download_format_to_standard(
+                            bible_data
+                        )
                 else:
                     input_format = self.converter._detect_format(temp_file_path)
                     if not input_format:
@@ -153,9 +171,13 @@ class BibleUploader:
                 default_metadata = {
                     "uploaded_at": datetime.now().isoformat(),
                     "source_file": file_path.name,
-                    "input_format": input_format
+                    "input_format": input_format,
                 }
-                final_metadata = {**default_metadata, **(metadata or {}), **bible_data.get("metadata", {})}
+                final_metadata = {
+                    **default_metadata,
+                    **(metadata or {}),
+                    **bible_data.get("metadata", {}),
+                }
                 bible_data["metadata"] = final_metadata
 
                 # Theological validation for each verse
@@ -171,7 +193,9 @@ class BibleUploader:
                         score_dict = self.validator.validate(verse)
                         scores.append(score_dict["overall"])
                     except Exception as e:
-                        logger.warning(f"Validation failed for verse {verse['number']}: {str(e)}")
+                        logger.warning(
+                            f"Validation failed for verse {verse['number']}: {str(e)}"
+                        )
                         scores.append(0.0)  # Default to 0 for failed validation
 
                 theological_score = sum(scores) / len(scores) if scores else 0.0
@@ -183,7 +207,9 @@ class BibleUploader:
 
                 standard_file_path = Path(temp_dir) / "standard.json"
                 self.converter._write_json(bible_data, str(standard_file_path))
-                file_id = self.storage.store_bible(str(standard_file_path), final_metadata)
+                file_id = self.storage.store_bible(
+                    str(standard_file_path), final_metadata
+                )
                 logger.info(f"File stored successfully with ID: {file_id}")
                 return True, file_id
 
@@ -202,43 +228,59 @@ class BibleUploader:
             for book in bible_data["books"]:
                 if not isinstance(book, dict):
                     return False, f"Invalid book structure: {book}"
-                    
+
                 book_id = book.get("name") or book.get("code")
                 if not book_id:
                     return False, "Book missing identification"
-                    
+
                 if not isinstance(book.get("chapters", []), list):
                     return False, f"Book {book_id} missing valid chapters"
-                    
+
                 for chapter in book["chapters"]:
                     if not all(k in chapter for k in ["number", "verses"]):
                         return False, f"Invalid chapter structure in {book_id}"
-                        
+
                     if not isinstance(chapter["verses"], list) or not chapter["verses"]:
-                        return False, f"No verses in chapter {chapter['number']} of {book_id}"
-                        
+                        return (
+                            False,
+                            f"No verses in chapter {chapter['number']} of {book_id}",
+                        )
+
                     for verse in chapter["verses"]:
-                        if not all(k in verse for k in ["number", "text"]) or not str(verse["text"]).strip():
-                            return False, f"Invalid verse in {book_id} chapter {chapter['number']}"
-                            
+                        if (
+                            not all(k in verse for k in ["number", "text"])
+                            or not str(verse["text"]).strip()
+                        ):
+                            return (
+                                False,
+                                f"Invalid verse in {book_id} chapter {chapter['number']}",
+                            )
+
             return True, "Validation passed"
         except Exception as e:
             logger.error(f"Validation failed: {str(e)}")
             return False, f"Validation failed: {str(e)}"
 
-    def upload_directory(self, dir_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Tuple[bool, str]]:
+    def upload_directory(
+        self, dir_path: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Tuple[bool, str]]:
         if not os.path.isdir(dir_path):
             logger.error(f"Directory not found: {dir_path}")
             return {dir_path: (False, "Directory not found")}
 
-        files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) 
-                 if os.path.isfile(os.path.join(dir_path, f)) and 
-                 os.path.splitext(f)[1].lower() in self.supported_formats]
-        
+        files = [
+            os.path.join(dir_path, f)
+            for f in os.listdir(dir_path)
+            if os.path.isfile(os.path.join(dir_path, f))
+            and os.path.splitext(f)[1].lower() in self.supported_formats
+        ]
+
         results = {}
         with ThreadPoolExecutor(max_workers=min(4, len(files) or 1)) as executor:
-            future_to_file = {executor.submit(self.upload_file, file, metadata): file 
-                              for file in files}
+            future_to_file = {
+                executor.submit(self.upload_file, file, metadata): file
+                for file in files
+            }
             for future in future_to_file:
                 file_path = future_to_file[future]
                 try:
@@ -255,6 +297,7 @@ class BibleUploader:
                 logger.info("Temporary files cleaned up successfully")
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
+
 
 if __name__ == "__main__":
     import argparse

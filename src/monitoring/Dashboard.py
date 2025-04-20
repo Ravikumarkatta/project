@@ -6,13 +6,15 @@ Displays metrics like inference latency, theological validation scores, pipeline
 and system resource usage.
 """
 
+from typing import Dict, List
+
 import dash
+import pandas as pd
+import plotly.express as px
+import requests
 from dash import dcc, html
 from dash.dependencies import Input, Output
-import plotly.express as px
-import pandas as pd
-import requests
-from typing import Dict, List
+
 from src.utils.logger import get_logger
 
 logger = get_logger("MonitoringDashboard")
@@ -47,7 +49,9 @@ class MonitoringDashboard:
         self.app.layout = html.Div(
             [
                 html.H1("Bible-AI Monitoring Dashboard", style={"textAlign": "center"}),
-                dcc.Interval(id="interval-component", interval=10 * 1000, n_intervals=0),  # Update every 10 seconds
+                dcc.Interval(
+                    id="interval-component", interval=10 * 1000, n_intervals=0
+                ),  # Update every 10 seconds
                 html.Div(
                     [
                         html.Div(
@@ -158,13 +162,22 @@ class MonitoringDashboard:
 
         # Create graphs
         latency_fig = px.line(
-            df, x="timestamp", y="inference_latency", title="Inference Latency Over Time"
+            df,
+            x="timestamp",
+            y="inference_latency",
+            title="Inference Latency Over Time",
         )
         validation_fig = px.line(
-            df, x="timestamp", y="validation_score", title="Theological Validation Score Over Time"
+            df,
+            x="timestamp",
+            y="validation_score",
+            title="Theological Validation Score Over Time",
         )
         throughput_fig = px.line(
-            df, x="timestamp", y="pipeline_throughput", title="Pipeline Throughput Over Time"
+            df,
+            x="timestamp",
+            y="pipeline_throughput",
+            title="Pipeline Throughput Over Time",
         )
         resources_fig = px.line(
             df,

@@ -1,14 +1,18 @@
 # src/data/utils.py
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
+
 import torch
 
-def collate_fn(batch: List[Dict[str, torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor]:
+
+def collate_fn(
+    batch: List[Dict[str, torch.Tensor]],
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Collate function to convert dataset outputs into (input_ids, target_ids) for training.
-    
+
     Args:
         batch: List of dictionary items from dataset.
-        
+
     Returns:
         Tuple of (input_ids, target_ids) as tensors.
     """

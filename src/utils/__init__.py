@@ -7,7 +7,7 @@ checks.
 """
 
 # Import core utilities
-from .logger import setup_logger, get_logger
+from .logger import get_logger, setup_logger
 from .security import check_security, sanitize_input
 
 # Import theological checks if available
@@ -18,20 +18,21 @@ except ImportError:
     def validate_theological_content(*args, **kwargs):
         """
         Placeholder for theological content validation.
-        
+
         This is a stub that will be replaced once the theological_checks module
         is implemented.
         """
         return True
 
+
 # Version information
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 # Define what should be imported with "from utils import *"
 __all__ = [
-    'setup_logger',
-    'get_logger',
-    'check_security',
-    'sanitize_input',
-    'validate_theological_content',
+    "setup_logger",
+    "get_logger",
+    "check_security",
+    "sanitize_input",
+    "validate_theological_content",
 ]

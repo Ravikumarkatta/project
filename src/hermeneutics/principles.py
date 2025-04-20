@@ -4,13 +4,15 @@ Hermeneutical principles for Bible-AI.
 Implements sound biblical interpretation principles.
 """
 
-from typing import Dict, Any, List, Optional, Set, Tuple
-from pathlib import Path
 import json
 import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 from src.utils.logger import get_logger
 
 logger = get_logger("HermeneuticalPrinciples")
+
 
 class HermeneuticalPrinciples:
     """Applies sound hermeneutical principles to biblical interpretation."""
@@ -27,19 +29,19 @@ class HermeneuticalPrinciples:
         self.principles = self.rules.get("hermeneutical_principles", {})
         self.genres = self.rules.get("biblical_genres", {})
         self.contexts = self.rules.get("interpretive_contexts", {})
-        
+
     def _load_rules(self, rules_path: str) -> Dict[str, Any]:
         """Load theological rules from JSON file."""
         try:
             rules_file = Path(rules_path)
             if not rules_file.exists():
                 raise FileNotFoundError(f"Rules file not found: {rules_path}")
-            
+
             with rules_file.open("r", encoding="utf-8") as f:
                 rules = json.load(f)
                 self.logger.info(f"Loaded theological rules from {rules_path}")
                 return rules
-                
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Invalid JSON in {rules_path}: {e}")
             raise
@@ -47,10 +49,9 @@ class HermeneuticalPrinciples:
             self.logger.error(f"Failed to load rules: {e}")
             raise
 
-    def analyze_interpretation(self, 
-                             text: str, 
-                             verse_refs: List[str],
-                             genre: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_interpretation(
+        self, text: str, verse_refs: List[str], genre: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Analyze biblical interpretation for hermeneutical soundness.
 
@@ -68,7 +69,7 @@ class HermeneuticalPrinciples:
                 "valid": False,
                 "score": 0.0,
                 "issues": ["Missing text or verse references"],
-                "suggestions": []
+                "suggestions": [],
             }
 
         score = 100.0
@@ -101,7 +102,7 @@ class HermeneuticalPrinciples:
             "valid": score >= self.rules.get("minimum_score", 70.0),
             "score": score,
             "issues": issues,
-            "suggestions": list(set(suggestions))  # Remove duplicates
+            "suggestions": list(set(suggestions)),  # Remove duplicates
         }
 
     def _check_principles(self, text: str, verse_refs: List[str]) -> Dict[str, Any]:
@@ -113,19 +114,23 @@ class HermeneuticalPrinciples:
         for principle_id, rules in self.principles.items():
             required = rules.get("required_elements", [])
             avoid = rules.get("avoid", [])
-            
+
             # Check required elements
             for req in required:
                 if not any(r.lower() in text for r in req):
                     issues.append(f"Missing {principle_id} principle")
-                    suggestions.append(rules.get("suggestion", f"Apply {principle_id} principle"))
+                    suggestions.append(
+                        rules.get("suggestion", f"Apply {principle_id} principle")
+                    )
                     score -= 15.0
 
             # Check elements to avoid
             for avoid_item in avoid:
                 if any(a.lower() in text for a in avoid_item):
                     issues.append(f"Violation of {principle_id} principle")
-                    suggestions.append(rules.get("warning", f"Revise {principle_id} application"))
+                    suggestions.append(
+                        rules.get("warning", f"Revise {principle_id} application")
+                    )
                     score -= 20.0
 
         # Check for isolated verse interpretation
@@ -134,21 +139,13 @@ class HermeneuticalPrinciples:
             suggestions.append("Consider broader scriptural context")
             score -= 15.0
 
-        return {
-            "score": max(0.0, score),
-            "issues": issues,
-            "suggestions": suggestions
-        }
+        return {"score": max(0.0, score), "issues": issues, "suggestions": suggestions}
 
     def _check_genre_principles(self, text: str, genre: str) -> Dict[str, Any]:
         """Check genre-specific interpretation principles."""
         genre_rules = self.genres.get(genre, {})
         if not genre_rules:
-            return {
-                "score": 100.0,
-                "issues": [],
-                "suggestions": []
-            }
+            return {"score": 100.0, "issues": [], "suggestions": []}
 
         issues = []
         suggestions = []
@@ -159,7 +156,9 @@ class HermeneuticalPrinciples:
         for req in required:
             if not any(r.lower() in text for r in req):
                 issues.append(f"Missing {genre} genre consideration")
-                suggestions.append(genre_rules.get("suggestion", f"Consider {genre} genre features"))
+                suggestions.append(
+                    genre_rules.get("suggestion", f"Consider {genre} genre features")
+                )
                 score -= 15.0
 
         # Check genre-specific pitfalls
@@ -167,16 +166,16 @@ class HermeneuticalPrinciples:
         for pitfall in pitfalls:
             if any(p.lower() in text for p in pitfall):
                 issues.append(f"Common {genre} interpretation pitfall")
-                suggestions.append(genre_rules.get("warning", f"Avoid common {genre} pitfalls"))
+                suggestions.append(
+                    genre_rules.get("warning", f"Avoid common {genre} pitfalls")
+                )
                 score -= 20.0
 
-        return {
-            "score": max(0.0, score),
-            "issues": issues,
-            "suggestions": suggestions
-        }
+        return {"score": max(0.0, score), "issues": issues, "suggestions": suggestions}
 
-    def _check_contextual_analysis(self, text: str, verse_refs: List[str]) -> Dict[str, Any]:
+    def _check_contextual_analysis(
+        self, text: str, verse_refs: List[str]
+    ) -> Dict[str, Any]:
         """Check contextual analysis in interpretation."""
         issues = []
         suggestions = []
@@ -189,27 +188,32 @@ class HermeneuticalPrinciples:
             # Check if context type is addressed
             if not any(ind.lower() in text for ind in indicators):
                 issues.append(f"Missing {context_type} context")
-                suggestions.append(rules.get("suggestion", f"Consider {context_type} context"))
+                suggestions.append(
+                    rules.get("suggestion", f"Consider {context_type} context")
+                )
                 score -= 10.0
 
             # Check required elements for context type
             for req in required:
                 if not any(r.lower() in text for r in req):
                     issues.append(f"Incomplete {context_type} analysis")
-                    suggestions.append(rules.get("element_suggestion", f"Include {req[0]} in analysis"))
+                    suggestions.append(
+                        rules.get("element_suggestion", f"Include {req[0]} in analysis")
+                    )
                     score -= 5.0
 
-        return {
-            "score": max(0.0, score),
-            "issues": issues,
-            "suggestions": suggestions
-        }
+        return {"score": max(0.0, score), "issues": issues, "suggestions": suggestions}
 
     def _has_context_references(self, text: str) -> bool:
         """Check if text includes references to broader context."""
         context_terms = [
-            "context", "surrounding", "chapter", "book",
-            "preceding", "following", "passage"
+            "context",
+            "surrounding",
+            "chapter",
+            "book",
+            "preceding",
+            "following",
+            "passage",
         ]
         return any(term in text.lower() for term in context_terms)
 
@@ -225,9 +229,9 @@ class HermeneuticalPrinciples:
         """Get requirements for a specific type of context."""
         return self.contexts.get(context_type)
 
-    def suggest_interpretation_approach(self, 
-                                     genre: str, 
-                                     context_types: List[str]) -> Dict[str, Any]:
+    def suggest_interpretation_approach(
+        self, genre: str, context_types: List[str]
+    ) -> Dict[str, Any]:
         """
         Get suggested interpretation approach.
 
@@ -240,9 +244,7 @@ class HermeneuticalPrinciples:
         """
         genre_rules = self.genres.get(genre, {})
         context_guidelines = {
-            ct: self.contexts.get(ct, {})
-            for ct in context_types
-            if ct in self.contexts
+            ct: self.contexts.get(ct, {}) for ct in context_types if ct in self.contexts
         }
 
         return {
@@ -252,5 +254,5 @@ class HermeneuticalPrinciples:
                 for ct, rules in context_guidelines.items()
             },
             "common_pitfalls": genre_rules.get("common_pitfalls", []),
-            "recommended_steps": genre_rules.get("interpretation_steps", [])
+            "recommended_steps": genre_rules.get("interpretation_steps", []),
         }

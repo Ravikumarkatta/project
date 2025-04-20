@@ -5,13 +5,15 @@ Controversial topic handling for Bible-AI.
 Provides careful handling of sensitive theological topics.
 """
 
-from typing import Dict, Any, List, Optional, Set
-from pathlib import Path
 import json
 import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
+
 from src.utils.logger import get_logger
 
 logger = get_logger("ControversialHandler")
+
 
 class ControversialHandler:
     """Handles controversial theological topics with sensitivity."""
@@ -28,19 +30,19 @@ class ControversialHandler:
         self.controversial_topics = self.rules.get("controversial_topics", {})
         self.historical_debates = self.rules.get("historical_debates", {})
         self.modern_issues = self.rules.get("modern_issues", {})
-        
+
     def _load_rules(self, rules_path: str) -> Dict[str, Any]:
         """Load theological rules from JSON file."""
         try:
             rules_file = Path(rules_path)
             if not rules_file.exists():
                 raise FileNotFoundError(f"Rules file not found: {rules_path}")
-            
+
             with rules_file.open("r", encoding="utf-8") as f:
                 rules = json.load(f)
                 self.logger.info(f"Loaded theological rules from {rules_path}")
                 return rules
-                
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Invalid JSON in {rules_path}: {e}")
             raise
@@ -48,7 +50,9 @@ class ControversialHandler:
             self.logger.error(f"Failed to load rules: {e}")
             raise
 
-    def analyze_topic(self, text: str, topic_id: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_topic(
+        self, text: str, topic_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Analyze text for controversial topics.
 
@@ -65,7 +69,7 @@ class ControversialHandler:
                 "controversial": False,
                 "topics": [],
                 "suggestions": [],
-                "score": 100.0
+                "score": 100.0,
             }
 
         detected_topics = []
@@ -80,7 +84,7 @@ class ControversialHandler:
                     "controversial": topic_result["detected"],
                     "topics": [topic_result] if topic_result["detected"] else [],
                     "suggestions": topic_result["suggestions"],
-                    "score": topic_result["score"]
+                    "score": topic_result["score"],
                 }
             else:
                 self.logger.warning(f"Unknown controversial topic: {topic_id}")
@@ -88,7 +92,7 @@ class ControversialHandler:
                     "controversial": False,
                     "topics": [],
                     "suggestions": [f"Unknown topic: {topic_id}"],
-                    "score": 100.0
+                    "score": 100.0,
                 }
 
         # Analyze all topics
@@ -117,7 +121,7 @@ class ControversialHandler:
             "controversial": bool(detected_topics),
             "topics": detected_topics,
             "suggestions": suggestions,
-            "score": score
+            "score": score,
         }
 
     def _analyze_single_topic(self, text: str, topic_id: str) -> Dict[str, Any]:
@@ -126,7 +130,7 @@ class ControversialHandler:
         keywords = topic_rules.get("keywords", [])
         context_rules = topic_rules.get("context", {})
         balanced_view = topic_rules.get("balanced_view", [])
-        
+
         # Check for topic keywords
         detected = False
         matched_keywords = []
@@ -140,7 +144,7 @@ class ControversialHandler:
                 "topic_id": topic_id,
                 "detected": False,
                 "score": 100.0,
-                "suggestions": []
+                "suggestions": [],
             }
 
         # Analyze handling of the topic
@@ -164,7 +168,7 @@ class ControversialHandler:
             "detected": True,
             "matched_keywords": matched_keywords,
             "score": score,
-            "suggestions": suggestions
+            "suggestions": suggestions,
         }
 
     def _check_balanced_view(self, text: str, balanced_view: List[str]) -> float:
@@ -209,16 +213,15 @@ class ControversialHandler:
                 if not all(context.lower() in text for context in historical_context):
                     score = min(score, 70.0)
                     suggestions.append(f"Include historical context for {debate_id}")
-                detected_topics.append({
-                    "topic_id": debate_id,
-                    "type": "historical_debate"
-                })
+                detected_topics.append(
+                    {"topic_id": debate_id, "type": "historical_debate"}
+                )
 
         return {
             "detected": bool(detected_topics),
             "topics": detected_topics,
             "suggestions": suggestions,
-            "score": score
+            "score": score,
         }
 
     def _check_modern_issues(self, text: str) -> Dict[str, Any]:
@@ -231,19 +234,18 @@ class ControversialHandler:
             keywords = issue_rules.get("keywords", [])
             if any(keyword.lower() in text for keyword in keywords):
                 pastoral_guidelines = issue_rules.get("pastoral_guidelines", [])
-                if not all(guideline.lower() in text for guideline in pastoral_guidelines):
+                if not all(
+                    guideline.lower() in text for guideline in pastoral_guidelines
+                ):
                     score = min(score, 80.0)
                     suggestions.append(f"Consider pastoral implications for {issue_id}")
-                detected_topics.append({
-                    "topic_id": issue_id,
-                    "type": "modern_issue"
-                })
+                detected_topics.append({"topic_id": issue_id, "type": "modern_issue"})
 
         return {
             "detected": bool(detected_topics),
             "topics": detected_topics,
             "suggestions": suggestions,
-            "score": score
+            "score": score,
         }
 
     def get_topic_guidelines(self, topic_id: str) -> Optional[Dict[str, Any]]:
@@ -255,7 +257,7 @@ class ControversialHandler:
         return {
             "traditional": list(self.controversial_topics.keys()),
             "historical": list(self.historical_debates.keys()),
-            "modern": list(self.modern_issues.keys())
+            "modern": list(self.modern_issues.keys()),
         }
 
     def get_neutral_response(self, topic_id: str) -> Optional[str]:

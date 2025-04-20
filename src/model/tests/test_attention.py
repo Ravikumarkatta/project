@@ -1,7 +1,9 @@
 # src/model/tests/test_attention.py
 import pytest
 import torch
-from src.model.attention import MultiHeadAttention, BiblicalSelfAttention
+
+from src.model.attention import BiblicalSelfAttention, MultiHeadAttention
+
 
 def test_multi_head_attention():
     batch_size, seq_length, hidden_size = 2, 10, 768
@@ -9,6 +11,7 @@ def test_multi_head_attention():
     input_tensor = torch.randn(batch_size, seq_length, hidden_size)
     output, _ = model(input_tensor, input_tensor, input_tensor)
     assert output.shape == (batch_size, seq_length, hidden_size)
+
 
 def test_biblical_self_attention():
     model = BiblicalSelfAttention(hidden_size=768, num_attention_heads=12)

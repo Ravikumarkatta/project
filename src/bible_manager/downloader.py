@@ -4,21 +4,23 @@ Bible Downloader for Bible-AI.
 Downloads Bible translations from configured sources or processes existing files for use in the system.
 """
 
-import os
-import requests
 import json
-import zipfile
+import os
 import shutil
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
 import xml.etree.ElementTree as ET
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
+from tqdm import tqdm
 
 try:
     from src.utils.logger import get_logger
 except ImportError:
     import logging
+
     logging.basicConfig(level=logging.INFO)
     get_logger = lambda name: logging.getLogger(name)
 
@@ -30,10 +32,15 @@ except ImportError as e:
 
 logger = get_logger("bible_manager.downloader")
 
+
 class BibleDownloader:
     """Downloads and processes Bible translations for Bible-AI."""
 
-    def __init__(self, config_path: str = "config/bible_sources.json", raw_dir: str = "data/raw/bibles"):
+    def __init__(
+        self,
+        config_path: str = "config/bible_sources.json",
+        raw_dir: str = "data/raw/bibles",
+    ):
         self.config_path = Path(config_path).resolve()
         self.raw_dir = Path(raw_dir).resolve()
         self.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -45,10 +52,10 @@ class BibleDownloader:
     def _load_sources(self) -> Dict[str, Any]:
         """Load Bible sources from config file."""
         try:
-            with self.config_path.open('r', encoding='utf-8') as f:
+            with self.config_path.open("r", encoding="utf-8") as f:
                 sources = json.load(f)
             logger.info(f"Loaded {len(sources.get('sources', sources))} Bible sources")
-            return sources.get('sources', sources)
+            return sources.get("sources", sources)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load sources from {self.config_path}: {str(e)}")
             return {}
@@ -71,29 +78,36 @@ class BibleDownloader:
         bible_data = {}
         current_book = None
         current_chapter = None
-        
+
         try:
-            with file_path.open('r', encoding='utf-8') as f:
+            with file_path.open("r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
-                    
+
                     if line.startswith("BOOK: "):
                         current_book = line.replace("BOOK: ", "").strip()
                         current_chapter = None
                         logger.debug(f"Found book: {current_book}")
                         continue
-                    
+
                     if line.startswith("CHAPTER: "):
                         current_chapter = line.replace("CHAPTER: ", "").strip()
                         logger.debug(f"Found chapter: {current_chapter}")
                         continue
-                    
-                    if current_book and current_chapter and ":" in line and line.split(":")[0].isdigit():
+
+                    if (
+                        current_book
+                        and current_chapter
+                        and ":" in line
+                        and line.split(":")[0].isdigit()
+                    ):
                         chapter_num, rest = line.split(":", 1)
                         verse_num, text = rest.split(" ", 1)
-                        bible_data.setdefault(current_book, {}).setdefault(chapter_num, {})[verse_num] = text.strip()
+                        bible_data.setdefault(current_book, {}).setdefault(
+                            chapter_num, {}
+                        )[verse_num] = text.strip()
                     else:
                         logger.debug(f"Skipping line: {line}")
             return bible_data
@@ -106,33 +120,40 @@ class BibleDownloader:
         bible_data = {}
         try:
             logger.debug(f"Opening JSON file: {file_path}")
-            with file_path.open('r', encoding='utf-8') as f:
-                 data = json.load(f)
-        
+            with file_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
             logger.debug(f"JSON loaded, top-level keys: {list(data.keys())}")
-         
-        
-         # Iterate over book names directly (e.g., "Genesis")
+
+            # Iterate over book names directly (e.g., "Genesis")
             for book_name in data:
-                 logger.debug(f"Processing book: {book_name}")
-                 chapters = data[book_name]
-         # Ensure chapters is a dict
-                 if not isinstance(chapters, dict):
-                    logger.warning(f"Chapters for {book_name} is not a dictionary, skipping")
+                logger.debug(f"Processing book: {book_name}")
+                chapters = data[book_name]
+                # Ensure chapters is a dict
+                if not isinstance(chapters, dict):
+                    logger.warning(
+                        f"Chapters for {book_name} is not a dictionary, skipping"
+                    )
                     continue
-                 for chapter_num in chapters:
-                     logger.debug(f"Processing chapter: {chapter_num} in {book_name}")
-                     verses = chapters[chapter_num]
-                 for verse_num, verse_text in verses.items():
-                    logger.debug(f"Processing verse: {verse_num} - {verse_text[:50] if verse_text else 'None'}")
+                for chapter_num in chapters:
+                    logger.debug(f"Processing chapter: {chapter_num} in {book_name}")
+                    verses = chapters[chapter_num]
+                for verse_num, verse_text in verses.items():
+                    logger.debug(
+                        f"Processing verse: {verse_num} - {verse_text[:50] if verse_text else 'None'}"
+                    )
                     if not isinstance(verse_text, str):
-                        logger.warning(f"Verse text for {book_name} {chapter_num}:{verse_num} is not a string, skipping")
+                        logger.warning(
+                            f"Verse text for {book_name} {chapter_num}:{verse_num} is not a string, skipping"
+                        )
                         continue
-                    bible_data.setdefault(book_name, {}).setdefault(chapter_num, {})[verse_num] = verse_text.strip()
-          
-        
-    
-            logger.info(f"Parsed JSON structured file: {len(bible_data)} books processed")
+                    bible_data.setdefault(book_name, {}).setdefault(chapter_num, {})[
+                        verse_num
+                    ] = verse_text.strip()
+
+            logger.info(
+                f"Parsed JSON structured file: {len(bible_data)} books processed"
+            )
             return bible_data
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding failed for {file_path}: {str(e)}")
@@ -140,7 +161,6 @@ class BibleDownloader:
         except Exception as e:
             logger.error(f"Failed to parse JSON structured file {file_path}: {str(e)}")
             return {}
-    
 
     def _parse_gutenberg_text(self, file_path: Path) -> Dict[str, Any]:
         """Parse a Project Gutenberg Bible text file."""
@@ -148,9 +168,9 @@ class BibleDownloader:
         current_book = None
         current_chapter = None
         verse_num = 1
-        
+
         try:
-            with file_path.open('r', encoding='utf-8') as f:
+            with file_path.open("r", encoding="utf-8") as f:
                 in_bible_text = False
                 for line in f:
                     line = line.strip()
@@ -162,13 +182,13 @@ class BibleDownloader:
                         break
                     if not line:
                         continue
-                    
+
                     if line.isupper() and "CHAPTER" not in line:
                         current_book = line
                         current_chapter = None
                         verse_num = 1
                         continue
-                    
+
                     if "CHAPTER" in line:
                         for word in line.split():
                             if word.isdigit():
@@ -176,9 +196,11 @@ class BibleDownloader:
                                 verse_num = 1
                                 break
                         continue
-                    
+
                     if current_book and current_chapter:
-                        bible_data.setdefault(current_book, {}).setdefault(current_chapter, {})[str(verse_num)] = line
+                        bible_data.setdefault(current_book, {}).setdefault(
+                            current_chapter, {}
+                        )[str(verse_num)] = line
                         verse_num += 1
             return bible_data
         except Exception as e:
@@ -201,15 +223,22 @@ class BibleDownloader:
                 elif elem.tag == "v" and current_book and current_chapter:
                     verse_num = elem.get("id")
                     text = elem.text.strip() if elem.text else ""
-                    bible_data.setdefault(current_book, {}).setdefault(current_chapter, {})[verse_num] = text
+                    bible_data.setdefault(current_book, {}).setdefault(
+                        current_chapter, {}
+                    )[verse_num] = text
             return bible_data
         except Exception as e:
             logger.error(f"Failed to parse USFX XML {file_path}: {str(e)}")
             return {}
 
-    def process_local_file(self, version_id: str, local_file_path: str, force: bool = False) -> bool:
+    def process_local_file(
+        self, version_id: str, local_file_path: str, force: bool = False
+    ) -> bool:
         """Process an existing local Bible file."""
-        version_info = self.get_version_info(version_id) or {"name": version_id, "format": "custom_text"}
+        version_info = self.get_version_info(version_id) or {
+            "name": version_id,
+            "format": "custom_text",
+        }
         target_dir = self.raw_dir / version_id
         raw_file = Path(local_file_path).resolve()
 
@@ -231,7 +260,13 @@ class BibleDownloader:
                 logger.info(f"Using existing file at {target_raw_file}")
                 target_raw_file = raw_file
 
-            processed_file = self._process_file(version_id, target_raw_file, target_dir, version_info["format"], version_info)
+            processed_file = self._process_file(
+                version_id,
+                target_raw_file,
+                target_dir,
+                version_info["format"],
+                version_info,
+            )
             if not processed_file:
                 logger.error(f"Processing failed for {version_id}")
                 return False
@@ -242,7 +277,7 @@ class BibleDownloader:
                 "name": version_info.get("name", version_id),
                 "format": version_info["format"],
                 "source": "local",
-                "downloaded_at": target_raw_file.stat().st_mtime
+                "downloaded_at": target_raw_file.stat().st_mtime,
             }
             success, message = self.uploader.upload_file(str(processed_file), metadata)
             if success:
@@ -265,7 +300,10 @@ class BibleDownloader:
 
         target_dir = self.raw_dir / version_id
         format_type = version_info.get("format", "zip").lower()
-        raw_file = target_dir / f"{version_id}_raw{'txt' if format_type in ['custom_text', 'gutenberg'] else '.json' if format_type == 'json_structured' else '.zip'}"
+        raw_file = (
+            target_dir
+            / f"{version_id}_raw{'txt' if format_type in ['custom_text', 'gutenberg'] else '.json' if format_type == 'json_structured' else '.zip'}"
+        )
 
         if self.is_version_downloaded(version_id) and not force:
             logger.info(f"Version {version_id} already processed")
@@ -283,7 +321,9 @@ class BibleDownloader:
                 logger.error(f"No download URL and local file not found: {raw_file}")
                 return False
 
-            processed_file = self._process_file(version_id, raw_file, target_dir, format_type, version_info)
+            processed_file = self._process_file(
+                version_id, raw_file, target_dir, format_type, version_info
+            )
             if not processed_file:
                 logger.error(f"Processing failed for {version_id}")
                 return False
@@ -294,7 +334,7 @@ class BibleDownloader:
                 "name": version_info.get("name", version_id),
                 "format": format_type,
                 "source": str(raw_file) if not url else url,
-                "downloaded_at": raw_file.stat().st_mtime
+                "downloaded_at": raw_file.stat().st_mtime,
             }
             success, message = self.uploader.upload_file(str(processed_file), metadata)
             if success:
@@ -312,19 +352,26 @@ class BibleDownloader:
         """Download a file with progress bar."""
         with requests.get(url, stream=True, timeout=10) as r:
             r.raise_for_status()
-            total_size = int(r.headers.get('content-length', 0))
-            with local_path.open('wb') as f, tqdm(
+            total_size = int(r.headers.get("content-length", 0))
+            with local_path.open("wb") as f, tqdm(
                 desc=local_path.name,
                 total=total_size,
-                unit='B',
+                unit="B",
                 unit_scale=True,
-                unit_divisor=1024
+                unit_divisor=1024,
             ) as bar:
                 for chunk in r.iter_content(chunk_size=8192):
                     size = f.write(chunk)
                     bar.update(size)
 
-    def _process_file(self, version_id: str, raw_file: Path, target_dir: Path, format_type: str, version_info: Dict[str, Any]) -> Optional[Path]:
+    def _process_file(
+        self,
+        version_id: str,
+        raw_file: Path,
+        target_dir: Path,
+        format_type: str,
+        version_info: Dict[str, Any],
+    ) -> Optional[Path]:
         """Process a downloaded or local file."""
         processed_file = target_dir / f"{version_id}_processed.json"
         logger.debug(f"Starting processing: {raw_file}, format: {format_type}")
@@ -342,7 +389,11 @@ class BibleDownloader:
                 logger.debug("Processing as USFX/ZIP")
                 with zipfile.ZipFile(raw_file) as zip_ref:
                     zip_ref.extractall(target_dir)
-                content_file = target_dir / "WEBUSFX.xml" if version_id == "web" else next(iter(target_dir.glob("*.xml")), None)
+                content_file = (
+                    target_dir / "WEBUSFX.xml"
+                    if version_id == "web"
+                    else next(iter(target_dir.glob("*.xml")), None)
+                )
                 if not content_file or not content_file.exists():
                     raise ValueError("No valid USFX content file found in ZIP")
                 bible_data = self._parse_usfx_xml(content_file)
@@ -354,7 +405,7 @@ class BibleDownloader:
                 logger.error(f"No data processed from {raw_file}")
                 return None
 
-            with processed_file.open('w', encoding='utf-8') as f:
+            with processed_file.open("w", encoding="utf-8") as f:
                 json.dump(bible_data, f, indent=2)
             logger.debug(f"Processed file created: {processed_file}")
             return processed_file
@@ -362,11 +413,16 @@ class BibleDownloader:
             logger.error(f"Processing failed for {raw_file}: {str(e)}")
             return None
 
-    def download_multiple_versions(self, version_ids: List[str], force: bool = False) -> Dict[str, bool]:
+    def download_multiple_versions(
+        self, version_ids: List[str], force: bool = False
+    ) -> Dict[str, bool]:
         """Download multiple versions concurrently."""
         results = {}
         with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {executor.submit(self.download_version, vid, force): vid for vid in version_ids}
+            futures = {
+                executor.submit(self.download_version, vid, force): vid
+                for vid in version_ids
+            }
             for future in futures:
                 results[futures[future]] = future.result()
         return results
@@ -384,9 +440,13 @@ class BibleDownloader:
             except OSError as e:
                 logger.warning(f"Failed to remove {file_path}: {str(e)}")
 
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Download Bible translations for Bible-AI")
+
+    parser = argparse.ArgumentParser(
+        description="Download Bible translations for Bible-AI"
+    )
     parser.add_argument("--versions", type=str, help="Comma-separated list of versions")
     parser.add_argument("--config", type=str, default="config/bible_sources.json")
     parser.add_argument("--force", action="store_true")
@@ -395,10 +455,14 @@ if __name__ == "__main__":
 
     downloader = BibleDownloader(config_path=args.config)
     if args.local_file and args.versions:
-        success = downloader.process_local_file(args.versions.split(',')[0], args.local_file, args.force)
+        success = downloader.process_local_file(
+            args.versions.split(",")[0], args.local_file, args.force
+        )
         print(f"Local file: {'Success' if success else 'Failed'}")
     elif args.versions:
-        results = downloader.download_multiple_versions(args.versions.split(','), args.force)
+        results = downloader.download_multiple_versions(
+            args.versions.split(","), args.force
+        )
         for version, success in results.items():
             print(f"{version}: {'Success' if success else 'Failed'}")
     else:

@@ -7,12 +7,14 @@ Metrics are exposed via Prometheus for monitoring and alerting.
 """
 
 import time
-import torch
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
+
 import psutil
+import torch
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
-from src.utils.logger import get_logger
+
 from src.theology.validator import TheologicalValidator
+from src.utils.logger import get_logger
 
 logger = get_logger("MetricsCollector")
 
@@ -46,7 +48,10 @@ class MetricsCollector:
         )
         self.cpu_usage = Gauge("bibleai_cpu_usage_percent", "CPU usage percentage")
         self.memory_usage = Gauge("bibleai_memory_usage_mb", "Memory usage in MB")
-        self.verse_accuracy = Gauge("bibleai_verse_prediction_accuracy", "Accuracy of verse predictions (0 to 1)")
+        self.verse_accuracy = Gauge(
+            "bibleai_verse_prediction_accuracy",
+            "Accuracy of verse predictions (0 to 1)",
+        )
 
         # Start the Prometheus HTTP server to expose metrics
         try:
@@ -83,7 +88,9 @@ class MetricsCollector:
             response: Response dictionary to validate.
         """
         if not self.validator:
-            logger.warning("Theological validator not initialized; skipping validation score")
+            logger.warning(
+                "Theological validator not initialized; skipping validation score"
+            )
             return
         try:
             score = self.validator.validate(response)
@@ -103,7 +110,9 @@ class MetricsCollector:
         try:
             if duration <= 0:
                 raise ValueError("Duration must be positive")
-            throughput = (items_processed / duration) * 60  # Convert to items per minute
+            throughput = (
+                items_processed / duration
+            ) * 60  # Convert to items per minute
             self.pipeline_throughput.set(throughput)
             logger.debug(f"Pipeline throughput: {throughput:.2f} items/min")
         except Exception as e:
@@ -113,7 +122,9 @@ class MetricsCollector:
         """Track CPU and memory usage of the system."""
         try:
             self.cpu_usage.set(psutil.cpu_percent(interval=1))
-            self.memory_usage.set(psutil.virtual_memory().used / (1024 * 1024))  # Convert to MB
+            self.memory_usage.set(
+                psutil.virtual_memory().used / (1024 * 1024)
+            )  # Convert to MB
             logger.debug(
                 f"System resources - CPU: {self.cpu_usage._value.get():.2f}%, "
                 f"Memory: {self.memory_usage._value.get():.2f}MB"
@@ -121,7 +132,9 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Error tracking system resources: {e}")
 
-    def track_verse_accuracy(self, verse_logits: torch.Tensor, true_verse_indices: torch.Tensor) -> None:
+    def track_verse_accuracy(
+        self, verse_logits: torch.Tensor, true_verse_indices: torch.Tensor
+    ) -> None:
         """
         Track the accuracy of verse predictions.
 
@@ -141,7 +154,10 @@ class MetricsCollector:
 # Example usage
 if __name__ == "__main__":
     # Initialize metrics collector
-    validator_config = {"min_score": 0.9, "theological_terms": ["God", "Jesus", "Holy Spirit"]}
+    validator_config = {
+        "min_score": 0.9,
+        "theological_terms": ["God", "Jesus", "Holy Spirit"],
+    }
     collector = MetricsCollector(port=8000, validator_config=validator_config)
 
     # Simulate tracking metrics

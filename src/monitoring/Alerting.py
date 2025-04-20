@@ -7,9 +7,11 @@ Monitors metrics and sends alerts via email (and optionally Slack) when threshol
 
 import smtplib
 import time
-from typing import Dict, Optional
-import requests
 from email.mime.text import MIMEText
+from typing import Dict, Optional
+
+import requests
+
 from src.utils.logger import get_logger
 
 logger = get_logger("AlertingSystem")
@@ -43,8 +45,12 @@ class AlertingSystem:
             "cpu_usage": 80.0,  # Alert if CPU usage > 80%
             "memory_usage": 5000.0,  # Alert if memory usage > 5000 MB
         }
-        self.alert_cooldown = 300  # 5 minutes cooldown between alerts for the same metric
-        self.last_alerted: Dict[str, float] = {}  # Track last alert time for each metric
+        self.alert_cooldown = (
+            300  # 5 minutes cooldown between alerts for the same metric
+        )
+        self.last_alerted: Dict[str, float] = (
+            {}
+        )  # Track last alert time for each metric
 
     def fetch_metrics(self) -> Dict:
         """
@@ -86,10 +92,16 @@ class AlertingSystem:
             msg["From"] = self.smtp_config["user"]
             msg["To"] = self.smtp_config["to_email"]
 
-            with smtplib.SMTP(self.smtp_config["host"], self.smtp_config["port"]) as server:
+            with smtplib.SMTP(
+                self.smtp_config["host"], self.smtp_config["port"]
+            ) as server:
                 server.starttls()
                 server.login(self.smtp_config["user"], self.smtp_config["password"])
-                server.sendmail(self.smtp_config["user"], self.smtp_config["to_email"], msg.as_string())
+                server.sendmail(
+                    self.smtp_config["user"],
+                    self.smtp_config["to_email"],
+                    msg.as_string(),
+                )
             logger.info(f"Sent email alert: {subject}")
         except Exception as e:
             logger.error(f"Error sending email alert: {e}")
@@ -123,14 +135,36 @@ class AlertingSystem:
         avg_latency = latency_sum / max(1, latency_count)
 
         checks = [
-            ("inference_latency", avg_latency, self.thresholds["inference_latency"], "gt"),
-            ("validation_score", metrics.get("bibleai_theological_validation_score", 1.0), self.thresholds["validation_score"], "lt"),
-            ("cpu_usage", metrics.get("bibleai_cpu_usage_percent", 0), self.thresholds["cpu_usage"], "gt"),
-            ("memory_usage", metrics.get("bibleai_memory_usage_mb", 0), self.thresholds["memory_usage"], "gt"),
+            (
+                "inference_latency",
+                avg_latency,
+                self.thresholds["inference_latency"],
+                "gt",
+            ),
+            (
+                "validation_score",
+                metrics.get("bibleai_theological_validation_score", 1.0),
+                self.thresholds["validation_score"],
+                "lt",
+            ),
+            (
+                "cpu_usage",
+                metrics.get("bibleai_cpu_usage_percent", 0),
+                self.thresholds["cpu_usage"],
+                "gt",
+            ),
+            (
+                "memory_usage",
+                metrics.get("bibleai_memory_usage_mb", 0),
+                self.thresholds["memory_usage"],
+                "gt",
+            ),
         ]
 
         for metric_name, value, threshold, comparison in checks:
-            should_alert = (comparison == "gt" and value > threshold) or (comparison == "lt" and value < threshold)
+            should_alert = (comparison == "gt" and value > threshold) or (
+                comparison == "lt" and value < threshold
+            )
             last_alert_time = self.last_alerted.get(metric_name, 0)
 
             if should_alert and (current_time - last_alert_time) > self.alert_cooldown:

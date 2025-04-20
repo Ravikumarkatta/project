@@ -5,19 +5,23 @@ Manages the storage, retrieval, and querying of Bible texts with metadata indexi
 Enhanced for structured JSON support and additional functionality.
 """
 
-import os
 import json
-import uuid
-from typing import Dict, Any, Optional, List, Tuple
-from pathlib import Path
+import os
 import shutil
+import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 from src.utils.logger import get_logger
 
 logger = get_logger("bible_storage")
 
+
 class BibleStorage:
-    def __init__(self, config_path: Optional[str] = None, storage_dir: str = "data/bible_storage"):
+    def __init__(
+        self, config_path: Optional[str] = None, storage_dir: str = "data/bible_storage"
+    ):
         """Initialize BibleStorage with optional config and storage directory."""
         self.storage_dir = Path(storage_dir)
         self.index_file = self.storage_dir / "index.json"
@@ -25,7 +29,7 @@ class BibleStorage:
         self.config = {}
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     self.config = json.load(f)
                 logger.info(f"Loaded storage config from {config_path}")
             except Exception as e:
@@ -37,7 +41,7 @@ class BibleStorage:
         """Load the index file or return an empty dict if it doesn’t exist."""
         try:
             if self.index_file.exists():
-                with self.index_file.open('r', encoding='utf-8') as f:
+                with self.index_file.open("r", encoding="utf-8") as f:
                     return json.load(f)
             return {}
         except Exception as e:
@@ -47,7 +51,7 @@ class BibleStorage:
     def _save_index(self) -> None:
         """Save the index to disk with proper formatting."""
         try:
-            with self.index_file.open('w', encoding='utf-8') as f:
+            with self.index_file.open("w", encoding="utf-8") as f:
                 json.dump(self.index, f, indent=2)
             logger.debug(f"Index saved to {self.index_file}")
         except Exception as e:
@@ -57,17 +61,30 @@ class BibleStorage:
     def _validate_bible_data(self, data: Dict[str, Any]) -> Tuple[bool, str]:
         """Validate the structure of Bible JSON data."""
         try:
-            if not isinstance(data, dict) or "books" not in data or "metadata" not in data:
+            if (
+                not isinstance(data, dict)
+                or "books" not in data
+                or "metadata" not in data
+            ):
                 return False, "Invalid Bible JSON: Missing 'books' or 'metadata'"
             for book in data["books"]:
                 if not all(k in book for k in ["name", "code", "chapters"]):
-                    return False, f"Invalid book structure in {book.get('name', 'unknown')}"
+                    return (
+                        False,
+                        f"Invalid book structure in {book.get('name', 'unknown')}",
+                    )
                 for chapter in book["chapters"]:
                     if not all(k in chapter for k in ["chapter", "verses"]):
-                        return False, f"Invalid chapter structure in {book['name']} {chapter.get('chapter', 'unknown')}"
+                        return (
+                            False,
+                            f"Invalid chapter structure in {book['name']} {chapter.get('chapter', 'unknown')}",
+                        )
                     for verse in chapter["verses"]:
                         if not all(k in verse for k in ["verse", "text"]):
-                            return False, f"Invalid verse structure in {book['name']} {chapter['chapter']}:{verse.get('verse', 'unknown')}"
+                            return (
+                                False,
+                                f"Invalid verse structure in {book['name']} {chapter['chapter']}:{verse.get('verse', 'unknown')}",
+                            )
             return True, "Validation successful"
         except Exception as e:
             return False, f"Validation failed: {str(e)}"
@@ -78,7 +95,7 @@ class BibleStorage:
         target_path = self.storage_dir / f"{file_id}.json"
         try:
             # Load and validate the Bible data
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 bible_data = json.load(f)
             is_valid, validation_msg = self._validate_bible_data(bible_data)
             if not is_valid:
@@ -87,20 +104,25 @@ class BibleStorage:
             # Update metadata with counts and timestamp
             metadata["uploaded_at"] = datetime.utcnow().isoformat()
             metadata["book_count"] = len(bible_data["books"])
-            metadata["chapter_count"] = sum(len(book["chapters"]) for book in bible_data["books"])
+            metadata["chapter_count"] = sum(
+                len(book["chapters"]) for book in bible_data["books"]
+            )
             metadata["verse_count"] = sum(
-                sum(len(chap["verses"]) for chap in book["chapters"]) for book in bible_data["books"]
+                sum(len(chap["verses"]) for chap in book["chapters"])
+                for book in bible_data["books"]
             )
             bible_data["metadata"] = metadata
 
             # Save the validated and updated data
             shutil.copy(file_path, target_path)
-            with target_path.open('w', encoding='utf-8') as f:
+            with target_path.open("w", encoding="utf-8") as f:
                 json.dump(bible_data, f, indent=2)
             self.index[file_id] = metadata
             self._save_index()
-            logger.info(f"Stored Bible with ID {file_id} - Books: {metadata['book_count']}, "
-                       f"Chapters: {metadata['chapter_count']}, Verses: {metadata['verse_count']}")
+            logger.info(
+                f"Stored Bible with ID {file_id} - Books: {metadata['book_count']}, "
+                f"Chapters: {metadata['chapter_count']}, Verses: {metadata['verse_count']}"
+            )
             return file_id
         except Exception as e:
             logger.error(f"Storage failed for {file_path}: {str(e)}")
@@ -113,7 +135,7 @@ class BibleStorage:
             if not file_path.exists():
                 logger.warning(f"File not found for file_id: {file_id}")
                 return None
-            with file_path.open('r', encoding='utf-8') as f:
+            with file_path.open("r", encoding="utf-8") as f:
                 bible_data = json.load(f)
             logger.info(f"Retrieved Bible text for file_id: {file_id}")
             return bible_data
@@ -190,8 +212,9 @@ class BibleStorage:
             "book_count": len(bible_data["books"]),
             "chapter_count": sum(len(book["chapters"]) for book in bible_data["books"]),
             "verse_count": sum(
-                sum(len(chap["verses"]) for chap in book["chapters"]) for book in bible_data["books"]
-            )
+                sum(len(chap["verses"]) for chap in book["chapters"])
+                for book in bible_data["books"]
+            ),
         }
         logger.info(f"Stats for file_id {file_id}: {stats}")
         return stats
@@ -203,17 +226,30 @@ class BibleStorage:
             return False, f"No Bible found for file_id: {file_id}"
         return self._validate_bible_data(bible_data)
 
+
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Manage Bible storage for Bible-AI")
     parser.add_argument("--store", type=str, help="Path to a Bible JSON file to store")
     parser.add_argument("--retrieve", type=str, help="File ID to retrieve a Bible")
-    parser.add_argument("--query", type=str, help="JSON query for metadata (e.g., '{\"translation\": \"KJV\"}')")
+    parser.add_argument(
+        "--query",
+        type=str,
+        help='JSON query for metadata (e.g., \'{"translation": "KJV"}\')',
+    )
     parser.add_argument("--list", action="store_true", help="List all stored Bibles")
     parser.add_argument("--delete", type=str, help="File ID to delete a Bible")
     parser.add_argument("--stats", type=str, help="File ID to get Bible stats")
-    parser.add_argument("--validate", type=str, help="File ID to validate Bible structure")
-    parser.add_argument("--config", type=str, default="config/bible_sources.json", help="Path to configuration file")
+    parser.add_argument(
+        "--validate", type=str, help="File ID to validate Bible structure"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="config/bible_sources.json",
+        help="Path to configuration file",
+    )
     args = parser.parse_args()
 
     storage = BibleStorage(config_path=args.config)
