@@ -42,232 +42,156 @@ class MetricResult:
     def to_dict(self) -> Dict[str, Any]:
         return {"name": self.name, "value": self.value, "step": self.step}
 
-class EvaluationRegistry:
-    """Dynamic registry for evaluation metrics."""
-    def __init__(self):
-        self.metrics: Dict[str, Callable] = {}
-    
-    def register(self, name: str, metric_fn: Callable) -> None:
-        """Register a new metric function."""
-        if not callable(metric_fn):
-            raise ValueError(f"Metric {name} must be callable")
-        self.metrics[name] = metric_fn
-        logger.info(f"Registered metric: {name}")
-    
-    def get(self, name: str) -> Callable:
-        """Retrieve a metric function by name."""
-        return self.metrics.get(name, lambda *args, **kwargs: None)
-
 class BibleEvaluator:
-    """Robust evaluator for Bible-AI with theological and multi-task evaluation."""
+    """Evaluation system for biblical text generation models."""
     
     def __init__(
         self,
-        model: BiblicalTransformer,
-        val_loader: DataLoader,
-        config: Dict[str, Any],
-        device: torch.device = None,
+        model: torch.nn.Module,
+        val_loader: torch.utils.data.DataLoader,
+        config: Dict,
         theological_validator: Optional[TheologicalValidator] = None
     ):
-        """Initialize evaluator with model, data, and config."""
         self.model = model
         self.val_loader = val_loader
         self.config = config
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.theological_validator = theological_validator or TheologicalValidator(config.get("theology", {}))
-        self.writer = SummaryWriter(os.path.join(log_dir, "tensorboard_eval"))
-        self.registry = EvaluationRegistry()
-        self.global_step = 0
-        
-        # Register default metrics
-        self._register_default_metrics()
-        
-        # Initialize queues for parallel evaluation
-        self.result_queue = Queue()
-        self.model.eval().to(self.device)
-        logger.info("Evaluator initialized with device: %s", self.device)
-
-    def _register_default_metrics(self):
-        """Register built-in metrics for Bible-AI."""
-        self.registry.register("loss", self._compute_loss)
-        self.registry.register("accuracy", self._compute_accuracy)
-        self.registry.register("precision_recall_f1", self._compute_precision_recall_f1)
-        self.registry.register("theological_alignment", self._compute_theological_alignment)
-
-    def _compute_loss(self, outputs: Dict[str, torch.Tensor], targets: torch.Tensor) -> float:
-        """Compute average loss."""
-        from src.training.loss import TheologicalLoss  # Lazy import to avoid circular dependency
-        criterion = TheologicalLoss(**self.config.get("loss", {}))
-        return criterion(outputs["logits"], targets).item()
-
-    def _compute_accuracy(self, outputs: Dict[str, torch.Tensor], targets: torch.Tensor) -> float:
-        """Compute accuracy."""
-        preds = torch.argmax(outputs["logits"], dim=-1).cpu().numpy()
-        targets = targets.cpu().numpy()
-        return accuracy_score(targets, preds)
-
-    def _compute_precision_recall_f1(self, outputs: Dict[str, torch.Tensor], targets: torch.Tensor) -> Dict[str, float]:
-        """Compute precision, recall, and F1 scores."""
-        preds = torch.argmax(outputs["logits"], dim=-1).cpu().numpy()
-        targets = targets.cpu().numpy()
-        precision, recall, f1, _ = precision_recall_fscore_support(targets, preds, average="weighted", zero_division=0)
-        return {"precision": precision, "recall": recall, "f1": f1}
-
-    def _compute_theological_alignment(self, outputs: Dict[str, torch.Tensor], targets: torch.Tensor) -> float:
-        """Compute a custom Theological Alignment Score (TAS)."""
-        preds = torch.argmax(outputs["logits"], dim=-1)
-        score = self.theological_validator.validate(outputs["logits"], targets)
-        return score  # Assumes validator returns a float between 0 and 1
-
-    def add_custom_metric(self, name: str, metric_fn: Callable) -> None:
-        """Add a custom metric to the registry."""
-        self.registry.register(name, metric_fn)
-
-    def _evaluate_batch(self, batch: Dict[str, torch.Tensor], metric_names: List[str]) -> Dict[str, float]:
-        """Evaluate a single batch with specified metrics."""
-        try:
-            input_ids = batch["input_ids"].to(self.device)
-            attention_mask = batch["attention_mask"].to(self.device)
-            targets = batch["labels"].to(self.device)
-            
-            with torch.no_grad():
-                if self.config.get("training", {}).get("mixed_precision", False):
-                    with torch.cuda.amp.autocast():
-                        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
-                else:
-                    outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
-            
-            results = {}
-            for name in metric_names:
-                metric_fn = self.registry.get(name)
-                result = metric_fn(outputs, targets)
-                results[name] = result
-            return results
-        except Exception as e:
-            logger.error("Batch evaluation failed: %s", e)
-            return {}
-
-    def _parallel_evaluate(self, metric_names: List[str], result_queue: Queue) -> None:
-        """Evaluate dataset in parallel threads."""
-        batch_results = []
-        for batch in self.val_loader:
-            result = self._evaluate_batch(batch, metric_names)
-            batch_results.append(result)
-        result_queue.put(batch_results)
-
-    def evaluate(
+        self.theological_validator = theological_validator or TheologicalValidator()
+        self.metrics = defaultdict(float)
+        self.device = next(model.parameters()).device
+    
+    def compute_metrics(
         self,
-        metric_names: Optional[List[str]] = None,
-        epoch: int = 0,
-        visualize: bool = True
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+        verse_logits: Optional[torch.Tensor] = None,
+        verse_labels: Optional[torch.Tensor] = None,
+        theological_logits: Optional[torch.Tensor] = None,
+        theological_labels: Optional[torch.Tensor] = None,
     ) -> Dict[str, float]:
-        """Perform full evaluation with parallel processing and visualization."""
-        metric_names = metric_names or list(self.registry.metrics.keys())
-        if not metric_names:
-            logger.warning("No metrics specified for evaluation")
-            return {}
+        """
+        Compute all evaluation metrics.
         
-        logger.info("Starting evaluation with metrics: %s", metric_names)
+        Args:
+            logits: Main model logits
+            labels: Ground truth labels
+            verse_logits: Verse detection logits (optional)
+            verse_labels: Verse labels (optional)
+            theological_logits: Theological classification logits (optional)
+            theological_labels: Theological labels (optional)
+            
+        Returns:
+            Dictionary of metric names and values
+        """
+        metrics = {}
         
-        # Start parallel evaluation
-        num_threads = self.config.get("evaluation", {}).get("num_threads", 2)
-        batch_splits = np.array_split(list(self.val_loader), num_threads)
-        threads = []
-        queues = [Queue() for _ in range(num_threads)]
+        # Main task metrics (text generation)
+        pred_tokens = torch.argmax(logits, dim=-1)
+        valid_mask = (labels != -100)  # Ignore padding
         
-        for i, split in enumerate(batch_splits):
-            loader = DataLoader(
-                self.val_loader.dataset,
-                batch_size=self.val_loader.batch_size,
-                sampler=torch.utils.data.SubsetRandomSampler(range(len(split) * self.val_loader.batch_size))
+        # Accuracy
+        accuracy = (pred_tokens[valid_mask] == labels[valid_mask]).float().mean().item()
+        metrics['accuracy'] = accuracy
+        
+        # Perplexity
+        loss = torch.nn.functional.cross_entropy(
+            logits.view(-1, logits.size(-1)),
+            labels.view(-1),
+            ignore_index=-100
+        )
+        metrics['perplexity'] = torch.exp(loss).item()
+        
+        # Verse detection metrics if provided
+        if verse_logits is not None and verse_labels is not None:
+            verse_preds = torch.argmax(verse_logits, dim=-1)
+            verse_mask = (verse_labels != -100)
+            
+            verse_accuracy = (verse_preds[verse_mask] == verse_labels[verse_mask]).float().mean().item()
+            metrics['verse_detection_accuracy'] = verse_accuracy
+            
+            # Calculate precision, recall, F1 for verse detection
+            y_true = verse_labels[verse_mask].cpu().numpy()
+            y_pred = verse_preds[verse_mask].cpu().numpy()
+            
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                y_true,
+                y_pred,
+                average='weighted'
             )
-            thread = Thread(target=self._parallel_evaluate, args=(metric_names, queues[i]))
-            thread.start()
-            threads.append(thread)
+            metrics.update({
+                'verse_detection_precision': precision,
+                'verse_detection_recall': recall,
+                'verse_detection_f1': f1
+            })
         
-        # Collect results
-        all_results = defaultdict(list)
-        for queue in queues:
-            batch_results = queue.get()
-            for result in batch_results:
-                for name, value in result.items():
-                    all_results[name].append(value)
+        # Theological accuracy metrics if provided
+        if theological_logits is not None and theological_labels is not None:
+            theo_preds = torch.argmax(theological_logits, dim=-1)
+            theo_truth = torch.argmax(theological_labels, dim=-1)
+            
+            theo_accuracy = (theo_preds == theo_truth).float().mean().item()
+            metrics['theological_accuracy'] = theo_accuracy
+            
+            # Calculate theological metrics using validator
+            if hasattr(self.model, 'tokenizer'):
+                pred_text = self.model.tokenizer.batch_decode(pred_tokens)
+                validation_scores = [
+                    self.theological_validator.validate({"text": text})
+                    for text in pred_text
+                ]
+                metrics['theological_validation_score'] = np.mean(validation_scores)
         
-        for thread in threads:
-            thread.join()
+        return metrics
+    
+    @torch.no_grad()
+    def evaluate(self, epoch: int = 0) -> Dict[str, float]:
+        """
+        Run evaluation loop over validation data.
         
-        # Aggregate results
-        aggregated_results = {}
-        for name, values in all_results.items():
-            if isinstance(values[0], dict):
-                aggregated_results[name] = {
-                    k: np.mean([v[k] for v in values]) for k in values[0].keys()
-                }
-            else:
-                aggregated_results[name] = np.mean(values)
+        Args:
+            epoch: Current training epoch
+            
+        Returns:
+            Dictionary of averaged metrics
+        """
+        self.model.eval()
+        total_metrics = defaultdict(float)
+        num_batches = 0
         
-        # Log and visualize
-        for name, value in aggregated_results.items():
-            self.writer.add_scalar(f"Eval/{name}", value if isinstance(value, float) else value["f1"], epoch)
-            logger.info(f"Epoch {epoch} - {name}: {value}")
-            self.global_step += 1
-            self.result_queue.put(MetricResult(name, value, self.global_step))
+        for batch in self.val_loader:
+            # Move all batch tensors to device
+            batch = {k: v.to(self.device) if torch.is_tensor(v) else v 
+                    for k, v in batch.items()}
+            
+            # Forward pass
+            outputs = self.model(**batch)
+            
+            # Compute metrics
+            batch_metrics = self.compute_metrics(
+                outputs['logits'],
+                batch['labels'],
+                outputs.get('verse_logits'),
+                batch.get('verse_labels'),
+                outputs.get('theological_logits'),
+                batch.get('theological_labels')
+            )
+            
+            # Accumulate metrics
+            for metric, value in batch_metrics.items():
+                total_metrics[metric] += value
+            num_batches += 1
         
-        if visualize:
-            self._visualize_metrics(aggregated_results, epoch)
+        # Average metrics
+        metrics = {
+            metric: value / num_batches
+            for metric, value in total_metrics.items()
+        }
         
-        return aggregated_results
-
-    def _visualize_metrics(self, metrics: Dict[str, Union[float, Dict[str, float]]], epoch: int) -> None:
-        """Generate custom visualization of metrics."""
-        plt.figure(figsize=(10, 6))
-        for name, value in metrics.items():
-            if isinstance(value, dict):
-                plt.plot(epoch, value["f1"], label=f"{name}_f1", marker="o")
-            else:
-                plt.plot(epoch, value, label=name, marker="o")
-        plt.title(f"Evaluation Metrics - Epoch {epoch}")
-        plt.xlabel("Epoch")
-        plt.ylabel("Value")
-        plt.legend()
-        plt.grid(True)
-        plot_path = os.path.join(log_dir, f"metrics_epoch_{epoch}.png")
-        plt.savefig(plot_path)
-        plt.close()
-        logger.info(f"Saved metric visualization at {plot_path}")
-        self.writer.add_image("Metrics Plot", plt.imread(plot_path), epoch, dataformats="HWC")
-
-    def save_results(self, output_path: str) -> None:
-        """Save evaluation results to disk."""
-        results = []
-        while not self.result_queue.empty():
-            results.append(self.result_queue.get().to_dict())
-        try:
-            with open(output_path, "w") as f:
-                json.dump(results, f, indent=2)
-            logger.info(f"Saved evaluation results to {output_path}")
-        except Exception as e:
-            logger.error(f"Failed to save results: {e}")
-
-    def cleanup(self) -> None:
-        """Clean up resources."""
-        self.writer.close()
-        torch.cuda.empty_cache()
-        logger.info("Evaluator cleanup completed")
-
-def evaluate_model(
-    model: BiblicalTransformer,
-    val_loader: DataLoader,
-    config: Dict[str, Any],
-    device: Optional[torch.device] = None,
-    metric_names: Optional[List[str]] = None,
-    epoch: int = 0
-) -> Dict[str, float]:
-    """Convenience function for one-off evaluation."""
-    evaluator = BibleEvaluator(model, val_loader, config, device)
-    results = evaluator.evaluate(metric_names, epoch)
-    evaluator.cleanup()
-    return results
+        # Log metrics
+        metrics_str = [f"{k}: {v:.4f}" for k, v in metrics.items()]
+        print(f"Epoch {epoch} Validation Metrics:")
+        print(" | ".join(metrics_str))
+        
+        return metrics
 
 if __name__ == "__main__":
     # Example usage
@@ -280,5 +204,4 @@ if __name__ == "__main__":
     
     evaluator = BibleEvaluator(model, val_loader, config)
     results = evaluator.evaluate(epoch=1)
-    evaluator.save_results(os.path.join(PROJECT_ROOT, "results/eval_results.json"))
     print(results)

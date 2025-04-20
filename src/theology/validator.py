@@ -1,136 +1,189 @@
-"""
-Main theological validation logic for Bible-AI.
-
-Validates model outputs against theological rules, ensuring scriptural integrity.
-"""
-
-from typing import Dict, Any, Optional, List
 import json
 import re
+from typing import Dict, List, Optional, Union
+import logging
 from pathlib import Path
-from src.utils.logger import get_logger
-
-logger = get_logger("TheologicalValidator")
+import torch
+import numpy as np
+from transformers import AutoTokenizer, AutoModel
 
 class TheologicalValidator:
-    """Validates text against theological rules with robust scoring."""
-
-    def __init__(self, rules_path: str = "config/theological_rules.json") -> None:
-        self.logger = logger
-        self.rules = {"minimum_score": 0.9, "core_terms": {}, "doctrinal_checks": {}}  # Default rules
-        rules_file = Path(rules_path)
-        if rules_file.exists():
-            try:
-                with rules_file.open("r", encoding="utf-8") as f:
-                    self.rules.update(json.load(f))
-                    self.logger.info(f"Loaded theological rules from {rules_path}")
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Invalid JSON in {rules_path}: {e}")
-                raise
-            except Exception as e:
-                self.logger.error(f"Failed to load rules: {e}")
-                raise
-        else:
-            self.logger.warning(f"Rules file {rules_path} not found; using default rules")
+    """System for validating theological accuracy of model outputs."""
+    
+    def __init__(self, config_path: Optional[str] = None):
+        self.logger = logging.getLogger(__name__)
         
-        # Always set attributes from self.rules
-        self.min_score = self.rules.get("minimum_score", 0.9)
-        self.core_terms = self.rules.get("core_terms", {})
-        self.doctrinal_checks = self.rules.get("doctrinal_checks", {})
-        self.context_sensitive = self.core_terms.get("context_sensitive", {})
-
-    def validate(self, output: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Validate model output against theological rules.
-
-        Args:
-            output (Dict[str, Any]): Model output with 'text' key.
-
-        Returns:
-            Dict[str, float]: Validation scores (overall and component-wise).
-
-        Raises:
-            ValueError: If output lacks 'text' key or is empty.
-        """
-        text = output.get("text", "").strip().lower()
-        if not text:
-            self.logger.error("No valid text provided for validation")
-            raise ValueError("Output must contain non-empty 'text' key")
-
-        scores = {
-            "overall": 0.0,
-            "core_terms": 0.0,
-            "doctrines": 0.0,
-            "context_sensitivity": 0.0
+        # Load configuration
+        self.config = self._load_config(config_path)
+        
+        # Initialize theological rules
+        self.rules = self._initialize_rules()
+        
+        # Load Bible knowledge base
+        self.knowledge_base = self._load_knowledge_base()
+        
+        # Setup embeddings model for semantic similarity
+        self.tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+        self.model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+    
+    def _load_config(self, config_path: Optional[str] = None) -> Dict:
+        """Load theological validation configuration."""
+        if not config_path:
+            config_path = Path(__file__).parent.parent.parent / "config" / "theological_rules.json"
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            self.logger.error(f"Failed to load config: {e}")
+            return {
+                "min_doctrinal_score": 0.7,
+                "min_biblical_accuracy": 0.8,
+                "semantic_similarity_threshold": 0.85,
+                "essential_doctrines": [
+                    "trinity",
+                    "deity_of_christ",
+                    "salvation_by_grace",
+                    "resurrection",
+                    "scripture_authority"
+                ],
+                "heretical_patterns": [
+                    "works_based_salvation",
+                    "denial_of_trinity",
+                    "denial_of_christ_deity"
+                ]
+            }
+    
+    def _initialize_rules(self) -> Dict:
+        """Initialize theological validation rules."""
+        rules_path = Path(__file__).parent / "rules"
+        rules = {}
+        
+        # Core doctrinal rules
+        rules["doctrinal"] = {
+            doctrine: self._load_rule(rules_path / f"{doctrine}.json")
+            for doctrine in self.config["essential_doctrines"]
         }
-
-        # Component scores
-        scores["core_terms"] = self._check_core_terms(text)
-        scores["doctrines"] = self._check_doctrines(text)
-        scores["context_sensitivity"] = self._check_context_sensitivity(text)
-
-        # Overall score as weighted average (equal weights for simplicity)
-        scores["overall"] = sum(scores.values()) / len(scores)
-        self.logger.debug(f"Validation scores for '{text[:50]}...': {scores}")
+        
+        # Heresy detection rules
+        rules["heretical"] = {
+            pattern: self._load_rule(rules_path / f"{pattern}.json")
+            for pattern in self.config["heretical_patterns"]
+        }
+        
+        return rules
+    
+    def _load_rule(self, rule_path: Path) -> Dict:
+        """Load individual validation rule."""
+        try:
+            if rule_path.exists():
+                with open(rule_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                self.logger.warning(f"Rule file not found: {rule_path}")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Failed to load rule {rule_path}: {e}")
+            return {}
+    
+    def _load_knowledge_base(self) -> Dict:
+        """Load biblical knowledge base for validation."""
+        kb_path = Path(__file__).parent / "knowledge_base" / "theological_kb.json"
+        try:
+            if kb_path.exists():
+                with open(kb_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                self.logger.warning("Knowledge base file not found")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Failed to load knowledge base: {e}")
+            return {}
+    
+    def _get_text_embedding(self, text: str) -> torch.Tensor:
+        """Get embedding for text using sentence transformer."""
+        inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            # Use mean pooling to get text embedding
+            embedding = torch.mean(outputs.last_hidden_state, dim=1)
+        
+        return embedding
+    
+    def _check_doctrinal_accuracy(self, text: str) -> Dict[str, float]:
+        """Check text against core doctrinal rules."""
+        scores = {}
+        text_embedding = self._get_text_embedding(text)
+        
+        for doctrine, rule in self.rules["doctrinal"].items():
+            if "key_statements" in rule:
+                # Compare with key doctrinal statements
+                statement_scores = []
+                for statement in rule["key_statements"]:
+                    statement_embedding = self._get_text_embedding(statement)
+                    similarity = torch.cosine_similarity(text_embedding, statement_embedding)
+                    statement_scores.append(similarity.item())
+                scores[doctrine] = max(statement_scores)
+            
+            if "keywords" in rule:
+                # Check for presence of essential keywords
+                keyword_score = sum(1 for word in rule["keywords"] if word.lower() in text.lower())
+                scores[f"{doctrine}_keywords"] = keyword_score / len(rule["keywords"])
+        
         return scores
-
-    def _check_core_terms(self, text: str) -> float:
-        """Check presence of required and absence of forbidden terms."""
-        required = self.core_terms.get("required", [])
-        forbidden = self.core_terms.get("forbidden", [])
-
-        required_score = sum(1 for term in required if term.lower() in text) / max(len(required), 1)
-        forbidden_penalty = sum(1 for term in forbidden if term.lower() in text) * 0.2
-
-        score = max(0.0, required_score - forbidden_penalty)
-        self.logger.debug(f"Core terms score: {score}")
-        return score
-
-    def _check_doctrines(self, text: str) -> float:
-        """Verify adherence to core doctrines."""
-        score = 0.0
-        num_checks = max(len(self.doctrinal_checks), 1)
-
-        for doctrine, rules in self.doctrinal_checks.items():
-            required = rules.get("required_phrases", [])
-            forbidden = rules.get("forbidden_phrases", [])
-
-            req_found = any(re.search(rf"\b{phrase.lower()}\b", text) for phrase in required)
-            forb_found = any(re.search(rf"\b{phrase.lower()}\b", text) for phrase in forbidden)
-
-            if req_found and not forb_found:
-                score += 1.0
-            elif forb_found:
-                score -= 0.5
-
-        final_score = max(0.0, score / num_checks)
-        self.logger.debug(f"Doctrines score: {final_score}")
+    
+    def _check_heretical_patterns(self, text: str) -> Dict[str, bool]:
+        """Check text for heretical patterns."""
+        results = {}
+        for pattern, rule in self.rules["heretical"].items():
+            if "patterns" in rule:
+                matches = any(re.search(p, text, re.IGNORECASE) for p in rule["patterns"])
+                results[pattern] = matches
+        return results
+    
+    def validate(self, text_data: Union[str, Dict]) -> float:
+        """
+        Validate theological accuracy of text.
+        
+        Args:
+            text_data: Either a string of text or a dictionary containing text and metadata
+            
+        Returns:
+            Validation score between 0 and 1
+        """
+        if isinstance(text_data, dict):
+            text = text_data.get("text", "")
+            context = text_data.get("context", {})
+        else:
+            text = text_data
+            context = {}
+        
+        if not text:
+            return 0.0
+        
+        # Check doctrinal accuracy
+        doctrinal_scores = self._check_doctrinal_accuracy(text)
+        avg_doctrinal_score = sum(doctrinal_scores.values()) / len(doctrinal_scores)
+        
+        # Check for heretical patterns
+        heresy_checks = self._check_heretical_patterns(text)
+        heresy_penalty = sum(1 for check in heresy_checks.values() if check) * 0.2
+        
+        # Calculate final score
+        base_score = avg_doctrinal_score
+        final_score = max(0.0, base_score - heresy_penalty)
+        
+        # Log validation results
+        self.logger.info(f"Validation results for text: {final_score:.2f}")
+        self.logger.debug(f"Doctrinal scores: {doctrinal_scores}")
+        self.logger.debug(f"Heresy checks: {heresy_checks}")
+        
         return final_score
-
-    def _check_context_sensitivity(self, text: str) -> float:
-        """Check context-sensitive terms for appropriate usage."""
-        score = 0.0
-        num_terms = max(len(self.context_sensitive), 1)
-
-        for term, contexts in self.context_sensitive.items():
-            if term.lower() in text:
-                pos_contexts = contexts.get("positive_contexts", [])
-                neg_contexts = contexts.get("negative_contexts", [])
-
-                pos_found = any(ctx.lower() in text for ctx in pos_contexts)
-                neg_found = any(ctx.lower() in text for ctx in neg_contexts)
-
-                if pos_found and not neg_found:
-                    score += 1.0
-                elif neg_found:
-                    score -= 0.5
-
-        final_score = max(0.0, score / num_terms)
-        self.logger.debug(f"Context sensitivity score: {final_score}")
-        return final_score
-
-if __name__ == "__main__":
-    validator = TheologicalValidator()
-    sample_output = {"text": "God loves us through Jesus and grace"}
-    scores = validator.validate(sample_output)
-    print(f"Validation scores: {scores}")
+    
+    def validate_batch(self, texts: List[Union[str, Dict]]) -> List[float]:
+        """Validate a batch of texts."""
+        return [self.validate(text) for text in texts]
