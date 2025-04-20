@@ -214,8 +214,17 @@ jobs:
   build-and-deploy:
     name: Build and Deploy
     needs: [integration-testing, frontend-testing]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [staging, production]
+        include:
+          - environment: staging
+            url: https://staging.your-bible-ai.com
+            should_deploy: true
+          - environment: production
+            url: https://your-bible-ai.com
+            should_deploy: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     
     steps:
       - uses: actions/checkout@v4
@@ -226,6 +235,14 @@ jobs:
           name: frontend-build
           path: frontend/build
       
+      - name: Cache Bible Data
+        uses: actions/cache@v3
+        with:
+          path: |
+            data/raw/bibles
+            data/processed/bible.db
+          key: ${{ runner.os }}-bible-data-${{ hashFiles('data/raw/bibles/**') }}
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
@@ -233,10 +250,62 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
-          tags: ghcr.io/${{ github.repository }}/bible-ai-backend:latest
+          push: ${{ matrix.should_deploy }}
+          tags: |
+            ghcr.io/${{ github.repository }}/bible-ai-backend:latest
+            ghcr.io/${{ github.repository }}/bible-ai-backend:${{ matrix.environment }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Deploy to ${{ matrix.environment }}
+        if: matrix.should_deploy
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+      
+      - name: Update Kubernetes deployment
+        if: matrix.should_deploy
+        run: |
+          doctl kubernetes cluster kubeconfig save bible-ai-cluster
+          kubectl set image deployment/bible-ai bible-ai=ghcr.io/${{ github.repository }}/bible-ai-backend:${{ matrix.environment }}
+          kubectl rollout status deployment/bible-ai
+      
+      - name: Verify Deployment
+        if: matrix.should_deploy
+        run: |
+          curl --retry 5 --retry-delay 5 -f ${{ matrix.url }}/health
+
+  documentation:
+    name: Update Documentation
+    needs: build-and-deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install documentation dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install mkdocs mkdocs-material mkdocstrings
+      
+      - name: Generate API documentation
+        run: |
+          python scripts/generate_api_docs.py
+      
+      - name: Build documentation
+        run: mkdocs build
+      
+      - name: Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
 
   semantic-release:
     name: Semantic Release
