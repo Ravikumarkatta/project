@@ -1,54 +1,35 @@
-﻿# Note: Requires Python 3.12.0 (install via pyenv, python.org, or system package manager)
+﻿# Core Dependencies (Python 3.12+)
 
-# Core Dependencies
-fastapi>=0.109.0
-uvicorn>=0.27.0
-starlette>=0.36.0
-pydantic>=2.6.0
-python-multipart>=0.0.9
-aiofiles>=23.2.1
-aiohttp>=3.9.0
+# Web Framework
+fastapi==0.68.0
+uvicorn==0.15.0
+pydantic==1.8.2
 
-# Machine Learning and Model Training
-torch>=2.2.0
-torchvision>=0.17.0
-transformers>=4.37.0
-sentence-transformers>=2.5.0
-numpy>=1.26.0
-scikit-learn>=1.4.0
-matplotlib>=3.8.0
-h5py>=3.10.0
+# Machine Learning (Lite)
+torch --index-url https://download.pytorch.org/whl/cpu
+transformers
+numpy
 
 # Data Processing
-pandas>=2.2.0
-beautifulsoup4>=4.12.0
-tqdm>=4.66.0
-lxml>=5.1.0
-
-# Database and Storage
-redis>=5.0.0
-sqlalchemy>=2.0.0
-alembic>=1.13.0
-
-# Monitoring and Logging
-prometheus-client>=0.19.0
-psutil>=5.9.0
-statsd>=4.0.0
-
-# Utilities
-pathlib2>=2.3.0
-python-dotenv>=1.0.0
-
-# API Documentation
-fastapi-versioning>=0.10.0
-openapi-schema-pydantic>=1.2.4
+pandas==2.0.3
+requests==2.31.0
 
 # Security
-pyjwt>=2.8.0
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
+pyjwt==2.8.0
+passlib[bcrypt]==1.7.4
 
-# Optional GPU Support (uncomment for GPU, adjust CUDA version for late 2025)
-# torch==2.5.0+cu124  # PyTorch with CUDA 12.4 (assumed latest by late 2025)
-# torchvision==0.20.0+cu124
-# -f https://download.pytorch.org/whl/torch_stable.html
+# Monitoring (Essential Only)
+psutil==5.9.0
+
+# Testing (Core)
+pytest==7.0.0
+pytest-asyncio==0.15.0
+
+# Code Quality
+ruff==0.1.0
+
+# Utilities
+python-dotenv==1.0.0
+
+# AI Features
+sentence-transformers==3.1.0
