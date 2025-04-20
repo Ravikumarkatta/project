@@ -43,3 +43,8 @@ logs/
 # System
 .DS_Store
 Thumbs.db
+
+# Project specific
+data/embeddings/cache/
+data/raw/commentaries/
+*.h5
