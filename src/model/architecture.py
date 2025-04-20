@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from torch.utils.checkpoint import checkpoint
 
 from src.model.attention import MultiHeadAttention
-from src.model.embeddings import TokenEmbeddings, PositionalEncoding
+from model.verse_embeddings import TokenEmbeddings, PositionalEncoding
 from src.model.verse_detector import VerseDetector
 from src.theology.validator import TheologicalValidator
 

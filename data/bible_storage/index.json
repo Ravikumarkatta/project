@@ -1,0 +1,22 @@
+{
+  "1e391501-d1eb-4ad7-8116-cd769edbef3e": {
+    "uploaded_at": "2025-03-21T11:37:49.930537",
+    "source_file": "kjv_processed.json",
+    "input_format": "json",
+    "translation": "kjv",
+    "name": "King James Version",
+    "format": "custom_text",
+    "source": "local",
+    "downloaded_at": 1742475580.5874057
+  },
+  "2d4db0be-da7c-4cf2-aa0a-65b8ea930c20": {
+    "uploaded_at": "2025-03-21T13:09:24.410550",
+    "source_file": "kjv_processed.json",
+    "input_format": "json",
+    "translation": "kjv",
+    "name": "King James Version",
+    "format": "json_structured",
+    "source": "local",
+    "downloaded_at": 1742542764.3459675
+  }
+}

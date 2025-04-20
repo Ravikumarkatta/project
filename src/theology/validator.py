@@ -1,4 +1,3 @@
-# src/theology/validator.py
 """
 Main theological validation logic for Bible-AI.
 
@@ -13,32 +12,32 @@ from src.utils.logger import get_logger
 
 logger = get_logger("TheologicalValidator")
 
-
 class TheologicalValidator:
     """Validates text against theological rules with robust scoring."""
 
-    # src/theology/validator.py (updated __init__)
     def __init__(self, rules_path: str = "config/theological_rules.json") -> None:
         self.logger = logger
         self.rules = {"minimum_score": 0.9, "core_terms": {}, "doctrinal_checks": {}}  # Default rules
         rules_file = Path(rules_path)
         if rules_file.exists():
-           try:
-              with rules_file.open("r", encoding="utf-8") as f:
-                  self.rules.update(json.load(f))
-                  self.logger.info(f"Loaded theological rules from {rules_path}")
-           except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON in {rules_path}: {e}")
-            raise
-           except Exception as e:
-            self.logger.error(f"Failed to load rules: {e}")
-            raise
+            try:
+                with rules_file.open("r", encoding="utf-8") as f:
+                    self.rules.update(json.load(f))
+                    self.logger.info(f"Loaded theological rules from {rules_path}")
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Invalid JSON in {rules_path}: {e}")
+                raise
+            except Exception as e:
+                self.logger.error(f"Failed to load rules: {e}")
+                raise
         else:
-         self.logger.warning(f"Rules file {rules_path} not found; using default rules")
-         self.min_score = self.rules.get("minimum_score", 0.9)
-         self.core_terms = self.rules.get("core_terms", {})
-         self.doctrinal_checks = self.rules.get("doctrinal_checks", {})
-         self.context_sensitive = self.core_terms.get("context_sensitive", {})
+            self.logger.warning(f"Rules file {rules_path} not found; using default rules")
+        
+        # Always set attributes from self.rules
+        self.min_score = self.rules.get("minimum_score", 0.9)
+        self.core_terms = self.rules.get("core_terms", {})
+        self.doctrinal_checks = self.rules.get("doctrinal_checks", {})
+        self.context_sensitive = self.core_terms.get("context_sensitive", {})
 
     def validate(self, output: Dict[str, Any]) -> Dict[str, float]:
         """
@@ -129,7 +128,6 @@ class TheologicalValidator:
         final_score = max(0.0, score / num_terms)
         self.logger.debug(f"Context sensitivity score: {final_score}")
         return final_score
-
 
 if __name__ == "__main__":
     validator = TheologicalValidator()
