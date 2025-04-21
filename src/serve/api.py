@@ -1,4 +1,3 @@
-# src/serve/api.py
 """
 FastAPI backend for Bible-AI.
 
@@ -11,7 +10,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, TypeVar, cast
+from typing import Any, Dict, List, Optional, Union
 
 import jwt
 import torch
@@ -24,12 +23,11 @@ from transformers import PreTrainedTokenizer
 # Fixed import statements
 from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfig
 
-# Import with fallback implementation
+# Import with fallback implementation for MetricsCollector
 try:
     from src.monitoring.Metrics import MetricsCollector
 except ImportError:
-    # Fallback implementation if module is missing
-    class MetricsCollector:
+    class FallbackMetricsCollector:
         def __init__(self, port: int) -> None:
             self.port = port
             self._running = False
@@ -48,25 +46,22 @@ except ImportError:
         
         def track_validation_score(self, scores: Dict[str, float]) -> None:
             pass
+    MetricsCollector = FallbackMetricsCollector
 
-from src.serve.cache import Cache
-
-# Import with fallback implementation - avoid name collision
+# Import with fallback implementation for RateLimiter
 try:
-    from src.serve.rate_limiter import RateLimiter as ImportedRateLimiter
-    RateLimiter = ImportedRateLimiter
+    from src.serve.rate_limiter import RateLimiter
 except ImportError:
-    # Fallback implementation if module is missing
     class RateLimiter:
         def __init__(self, requests_per_minute: int, burst_limit: int) -> None:
             self.requests_per_minute = requests_per_minute
             self.burst_limit = burst_limit
         
         async def limit(self, request: Request) -> str:
-            # Extract client IP from request and return as string
             client_ip = request.client.host if request.client else "unknown"
-            return client_ip
+            return str(client_ip)  # Ensure string return
 
+from src.serve.cache import Cache
 from src.serve.verse_resolver import VerseResolver
 from src.theology.controversial import ControversialHandler
 from src.theology.denominational import DenominationalAdjuster
@@ -78,7 +73,6 @@ from src.utils.security import hash_password, verify_password, verify_token
 # Initialize logging
 logger = get_logger("API")
 
-
 # Load configurations
 def load_config(config_path: str) -> Dict[str, Any]:
     """Load JSON configuration file with error handling."""
@@ -87,14 +81,15 @@ def load_config(config_path: str) -> Dict[str, Any]:
         if not config_file.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
         with config_file.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            assert isinstance(data, dict), f"Config must be a dictionary, got {type(data)}"
+            return data
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in {config_path}: {e}")
         raise
     except Exception as e:
         logger.error(f"Failed to load config {config_path}: {e}")
         raise
-
 
 # Helper function to load tokenizer
 def load_tokenizer() -> Optional[PreTrainedTokenizer]:
@@ -106,7 +101,6 @@ def load_tokenizer() -> Optional[PreTrainedTokenizer]:
     except Exception as e:
         logger.error(f"Failed to load tokenizer: {e}")
         return None
-
 
 security_config = load_config("config/security_config.json")
 frontend_config = load_config("config/frontend_config.json")
@@ -147,7 +141,10 @@ model: Optional[BiblicalTransformer] = None
 # Load model
 try:
     model_config = BiblicalTransformerConfig(**load_config("config/model_config.json"))
-    tokenizer = load_tokenizer()  # May be None, but BiblicalTransformer should handle this
+    tokenizer = load_tokenizer()
+    if tokenizer is None:
+        logger.error("Tokenizer is required but none was loaded")
+        raise ValueError("Failed to initialize model: tokenizer is None")
     model = BiblicalTransformer(model_config, tokenizer=tokenizer)
     model_path = Path("data/snapshots/best_model.pt")
     if model_path.exists():
@@ -158,12 +155,10 @@ except Exception as e:
     logger.error(f"Failed to load model: {e}")
     model = None  # Set model to None if loading fails
 
-
 # Pydantic models for request/response validation
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
-
 
 class TextRequest(BaseModel):
     text: str = Field(
@@ -174,16 +169,13 @@ class TextRequest(BaseModel):
     denomination: Optional[str] = "default"
     topic: Optional[str] = None
 
-
 class VerseRequest(BaseModel):
     reference: str = Field(..., min_length=3, example="John 3:16")
     translation: str = Field(default="KJV")
 
-
 class Token(BaseModel):
     access_token: str
     token_type: str
-
 
 # Dependency for authenticated requests
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
@@ -198,32 +190,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-
 # Authentication endpoint
 @app.post("/token", response_model=Token)
 async def login(user: UserLogin) -> Token:
     """Authenticate user and issue JWT token."""
     # Mock user validation (replace with real DB check)
-    stored_password_hash = hash_password("example_password")  # Placeholder
-    if user.username != "admin" or not verify_password(
-        user.password, stored_password_hash
-    ):
+    stored_password_hash = hash_password("example_password")  # Single argument
+    if user.username != "admin" or not verify_password(user.password, stored_password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
         )
 
-    access_token_expires = timedelta(
-        seconds=security_config["authentication"]["token_expiry"]
-    )
+    access_token_expires = timedelta(seconds=security_config["authentication"]["token_expiry"])
     access_token = jwt.encode(
         {"sub": user.username, "exp": datetime.utcnow() + access_token_expires},
         security_config["authentication"]["secret_key"],
         algorithm="HS256",
     )
+    if not isinstance(access_token, str):
+        raise ValueError("JWT encoding did not return a string")
     logger.info(f"User {user.username} authenticated successfully")
     return Token(access_token=access_token, token_type="bearer")
-
 
 # Health check endpoint
 @app.get("/health")
@@ -236,11 +224,10 @@ async def health_check() -> Dict[str, str]:
         "cache": "active" if cache.is_active() else "inactive",
         "metrics": "running" if metrics_collector.is_running() else "stopped",
     }
-    latency = (datetime.now() - start_time).total_seconds()
+    latency = float((datetime.now() - start_time).total_seconds())
     metrics_collector.track_inference(latency)
     logger.debug(f"Health check: {status_dict}")
     return status_dict
-
 
 # Verse resolution endpoint
 @app.get("/verse")
@@ -254,8 +241,10 @@ async def get_verse(
     cache_key = f"verse:{verse_request.reference}:{verse_request.translation}"
     cached_response = cache.get(cache_key)
     if cached_response:
+        if not isinstance(cached_response, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in cached_response.items()):
+            raise ValueError("Invalid cache response type")
         logger.debug(f"Cache hit for {cache_key}")
-        return cast(Dict[str, str], cached_response)
+        return cached_response
 
     start_time = datetime.now()
     try:
@@ -264,14 +253,13 @@ async def get_verse(
             raise HTTPException(status_code=404, detail="Verse not found")
         response: Dict[str, str] = {"verse": verse_text}
         cache.set(cache_key, response)
-        latency = (datetime.now() - start_time).total_seconds()
+        latency = float((datetime.now() - start_time).total_seconds())
         metrics_collector.track_inference(latency)
         logger.info(f"Resolved verse {verse_request.reference} in {verse_request.translation}")
         return response
     except Exception as e:
         logger.error(f"Error resolving verse {verse_request.reference}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # Text generation endpoint
 @app.post("/generate")
@@ -286,7 +274,7 @@ async def generate_text(
     cached_response = cache.get(cache_key)
     if cached_response:
         logger.debug(f"Cache hit for {cache_key}")
-        return cast(Dict[str, Any], cached_response)
+        return cached_response
 
     if model is None:
         raise HTTPException(status_code=503, detail="Model not available")
@@ -301,21 +289,19 @@ async def generate_text(
         input_ids = model.tokenizer.tokenize(text_request.text)
         with torch.no_grad():
             outputs = model(input_ids=input_ids)
-            predicted_text = model.tokenizer.detokenize(
-                outputs["logits"].argmax(dim=-1)
-            )
+            predicted_text = model.tokenizer.detokenize(outputs["logits"].argmax(dim=-1))
 
         # Theological validation
         scores = validator.validate(predicted_text)
-        validation_score = scores.get("overall", 0.0)  # Use get with default value
+        if not isinstance(scores, dict):
+            raise ValueError(f"Expected dict from validator, got {type(scores)}")
+        validation_score = scores.get("overall", 0.0)
         
         # Add min_score property if not present
         min_score = getattr(validator, "min_score", 0.5)  # Default min_score if not defined
         
         if validation_score < min_score:
-            logger.warning(
-                f"Low theological score for '{predicted_text}': {validation_score}"
-            )
+            logger.warning(f"Low theological score for '{predicted_text}': {validation_score}")
 
         # Denominational adjustment - ensure denomination is a string
         denomination = text_request.denomination if text_request.denomination else "default"
@@ -353,12 +339,10 @@ async def generate_text(
             "topics": [t.get("topic", "") for t in controversy.get("topics", [])],
         }
         cache.set(cache_key, response)
-        latency = (datetime.now() - start_time).total_seconds()
+        latency = float((datetime.now() - start_time).total_seconds())
         metrics_collector.track_inference(latency)
         metrics_collector.track_validation_score(scores)
-        logger.info(
-            f"Generated text for '{text_request.text[:50]}...' by {user['username']}"
-        )
+        logger.info(f"Generated text for '{text_request.text[:50]}...' by {user['username']}")
         return response
     except ValueError as e:
         logger.error(f"Validation error: {e}")
@@ -366,7 +350,6 @@ async def generate_text(
     except Exception as e:
         logger.error(f"Error generating text: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 # Startup and shutdown events
 @app.on_event("startup")
@@ -378,14 +361,12 @@ async def startup_event() -> None:
     if security_config["ssl"]["enabled"]:
         logger.info("SSL enabled; ensure certificates are configured")
 
-
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Clean up resources on shutdown."""
     logger.info("Shutting down Bible-AI API")
     metrics_collector.stop()
     cache.stop()
-
 
 if __name__ == "__main__":
     import uvicorn  # type: ignore
@@ -400,4 +381,4 @@ if __name__ == "__main__":
     )
     uvicorn.run(
         "api:app", host="0.0.0.0", port=8000, reload=True, log_level="info", **ssl_args
-                )
+    )
