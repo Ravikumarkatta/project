@@ -8,7 +8,7 @@ checks.
 
 # Import core utilities
 from .logger import get_logger, setup_logger
-from .security import check_security, sanitize_input
+from .security import sanitize_input
 
 # Import theological checks if available
 try:
@@ -32,7 +32,6 @@ __version__ = "0.1.0"
 __all__ = [
     "setup_logger",
     "get_logger",
-    "check_security",
     "sanitize_input",
     "validate_theological_content",
 ]
