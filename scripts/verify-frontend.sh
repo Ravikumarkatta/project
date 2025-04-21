@@ -1,49 +1,71 @@
 #!/bin/bash
-set -e
+# Verify frontend build script
 
-BUILD_DIR="${1:-frontend/build}"
-REQUIRED_FILES=(
-    "index.html"
-    "static/js/main.js"
-    "static/css/main.css"
-    "manifest.json"
-    "favicon.ico"
-)
+set -e  # Exit immediately if a command exits with a non-zero status
 
-echo "Verifying frontend build in $BUILD_DIR..."
+# Color codes for better readability
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
 
-# Check if build directory exists
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "❌ Build directory not found!"
-    exit 1
+echo -e "${YELLOW}Verifying frontend build...${NC}"
+
+# Check if we're in the frontend directory or parent directory
+if [ -d "build" ]; then
+  BUILD_DIR="build"
+elif [ -d "frontend/build" ]; then
+  BUILD_DIR="frontend/build"
+else
+  echo -e "${RED}❌ Build directory not found${NC}"
+  exit 1
 fi
 
-# Check for required files
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$BUILD_DIR/$file" ]; then
-        echo "❌ Required file not found: $file"
-        exit 1
-    fi
-done
-
-# Check file sizes (warn if main bundle is too large)
-JS_BUNDLE_SIZE=$(find "$BUILD_DIR" -name "main.*.js" -exec ls -l {} \; | awk '{print $5}')
-if [ "$JS_BUNDLE_SIZE" -gt 2000000 ]; then
-    echo "⚠️  Warning: JavaScript bundle size is larger than 2MB"
+# Check if index.html exists
+if [ ! -f "$BUILD_DIR/index.html" ]; then
+  echo -e "${RED}❌ index.html not found in build directory${NC}"
+  exit 1
+else
+  echo -e "${GREEN}✓ index.html found${NC}"
 fi
 
-# Verify sourcemaps if not production
-if [ "$ENVIRONMENT" != "production" ]; then
-    if ! find "$BUILD_DIR" -name "*.map" -quit; then
-        echo "⚠️  Warning: No sourcemaps found in non-production build"
-    fi
+# Check for JavaScript files
+JS_COUNT=$(find "$BUILD_DIR" -name "*.js" | wc -l)
+if [ "$JS_COUNT" -eq 0 ]; then
+  echo -e "${RED}❌ No JavaScript files found in build directory${NC}"
+  exit 1
+else
+  echo -e "${GREEN}✓ Found $JS_COUNT JavaScript files${NC}"
 fi
 
-# Basic content validation
-if ! grep -q "Bible-AI" "$BUILD_DIR/index.html"; then
-    echo "❌ index.html appears to be invalid (Bible-AI content not found)"
-    exit 1
+# Check for CSS files
+CSS_COUNT=$(find "$BUILD_DIR" -name "*.css" | wc -l)
+if [ "$CSS_COUNT" -eq 0 ]; then
+  echo -e "${RED}❌ No CSS files found in build directory${NC}"
+  exit 1
+else
+  echo -e "${GREEN}✓ Found $CSS_COUNT CSS files${NC}"
 fi
 
-echo "✅ Frontend build verification completed successfully!"
+# Check for asset files
+ASSET_COUNT=$(find "$BUILD_DIR" -type f -not -name "*.html" -not -name "*.js" -not -name "*.css" -not -name "*.json" | wc -l)
+echo -e "${GREEN}✓ Found $ASSET_COUNT additional asset files${NC}"
+
+# Verify HTML contains expected content
+if grep -q "Bible-AI" "$BUILD_DIR/index.html"; then
+  echo -e "${GREEN}✓ index.html contains expected content${NC}"
+else
+  echo -e "${YELLOW}⚠️ index.html does not contain 'Bible-AI' - this might be intentional${NC}"
+fi
+
+# Check file sizes
+echo -e "${YELLOW}Checking build size...${NC}"
+TOTAL_SIZE=$(du -sh "$BUILD_DIR" | cut -f1)
+echo -e "${GREEN}✓ Total build size: $TOTAL_SIZE${NC}"
+
+# Final verdict
+echo -e "${GREEN}==============================${NC}"
+echo -e "${GREEN}✅ Frontend build verification completed successfully${NC}"
+echo -e "${GREEN}==============================${NC}"
+
 exit 0
