@@ -80,19 +80,19 @@ jobs:
           touch src/__init__.py tests/__init__.py
           echo "Directory structure verified or created"
       
-      - name: Run basic tests
+      - name: Create test file if needed
         run: |
           # Create a simple test if none exist
           if [ ! "$(find tests -name 'test_*.py' 2>/dev/null)" ]; then
             echo "Creating basic test file"
-            cat > tests/test_basic.py << 'EOF'
-def test_basic():
-    """Basic test to ensure testing infrastructure works."""
-    assert True
-EOF
+            echo 'def test_basic():' > tests/test_basic.py
+            echo '    """Basic test to ensure testing infrastructure works."""' >> tests/test_basic.py
+            echo '    assert True' >> tests/test_basic.py
           fi
-          
-          # Run tests
+      
+      - name: Run tests
+        run: |
+          # Run tests with appropriate test runner
           if command -v pytest &> /dev/null; then
             pytest tests/ -v
           else
