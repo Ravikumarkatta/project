@@ -1,16 +1,14 @@
-# src/training/trainer.py
 import json
 import os
 import sys
+from typing import Tuple, Optional, Dict, Any
 
 import torch
 from torch.cuda.amp import GradScaler, autocast
-from torch.utils.data import DataLoader
-from transformers import get_linear_schedule_with_warmup
+from torch.utils.data import DataLoader, Dataset
+from transformers import PreTrainedTokenizer
 
 from src.data.preprocessing import load_processed_data
-
-# Use absolute imports
 from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfig
 from src.monitoring.metrics import MetricsCollector
 from src.theology.validator import TheologicalValidator
@@ -40,14 +38,14 @@ if not init_files_present:
 
 
 class Trainer:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, tokenizer: PreTrainedTokenizer) -> None:
         # Load configuration with validation
         with open(config_path, "r") as f:
-            self.config = json.load(f)
+            self.config: Dict[str, Any] = json.load(f)
         self._validate_config()
 
         # Initialize early stopping counter
-        self.early_stopping_counter = 0
+        self.early_stopping_counter: int = 0
 
         # Create model config
         self.model_config = BiblicalTransformerConfig(
@@ -60,6 +58,9 @@ class Trainer:
         log_dir = self.config.get("logging", {}).get("log_dir", "logs")
         os.makedirs(log_dir, exist_ok=True)
         self.logger = setup_logger("trainer", os.path.join(log_dir, "training.log"))
+
+        # Store tokenizer
+        self.tokenizer = tokenizer
 
         # Initialize components
         self.setup_model()
@@ -74,23 +75,25 @@ class Trainer:
         )
         self.validator = TheologicalValidator(self.metrics_collector.validator_config)
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validate the config file structure."""
         required_keys = ["model_params", "data", "training", "optimizer", "logging"]
         missing_keys = [key for key in required_keys if key not in self.config]
         if missing_keys:
             raise KeyError(f"Missing required config keys: {missing_keys}")
 
-    def setup_model(self):
+    def setup_model(self) -> None:
         """Initialize model with error handling."""
         try:
-            self.model = BiblicalTransformer(self.model_config).to(self.device)
+            self.model = BiblicalTransformer(
+                config=self.model_config, tokenizer=self.tokenizer
+            ).to(self.device)
             self.logger.info(f"Model initialized successfully on {self.device}")
         except Exception as e:
             self.logger.error(f"Failed to initialize model: {str(e)}")
             raise
 
-    def setup_data(self):
+    def setup_data(self) -> None:
         """Initialize data loaders with proper path handling."""
         try:
             data_path = self.config.get("data", {}).get("data_path", "data/processed")
@@ -111,7 +114,7 @@ class Trainer:
             self.logger.error(f"Failed to load data: {str(e)}")
             raise
 
-    def setup_training_components(self):
+    def setup_training_components(self) -> None:
         """Initialize loss, optimizer, and scheduler with config params."""
         try:
             loss_config = self.config.get("loss", {})
@@ -140,26 +143,24 @@ class Trainer:
             self.logger.error(f"Failed to initialize training components: {str(e)}")
             raise
 
-    def train(self):
+    def train(self) -> None:
         """Training loop with theological validation and monitoring."""
         max_epochs = self.config["training"]["max_epochs"]
         best_val_loss = float("inf")
         max_grad_norm = self.config["training"]["max_grad_norm"]
         accumulation_steps = self.config["training"]["accumulation_steps"]
         use_mixed_precision = self.config["training"]["mixed_precision"]
-        scaler = GradScaler() if use_mixed_precision else None
+        scaler: Optional[GradScaler] = GradScaler() if use_mixed_precision else None
 
         self.logger.info(f"Starting training for {max_epochs} epochs")
 
         for epoch in range(max_epochs):
             self.logger.info(f"Starting epoch {epoch+1}/{max_epochs}")
             self.model.train()
-            epoch_loss = 0
+            epoch_loss = 0.0
 
             for batch_idx, batch in enumerate(self.train_loader):
-                input_ids, labels, attention_mask, verse_positions = (
-                    batch  # Unpack verse_positions
-                )
+                input_ids, labels, attention_mask, verse_positions = batch
 
                 input_ids = input_ids.to(self.device)
                 labels = labels.to(self.device)
@@ -169,7 +170,7 @@ class Trainer:
                 if batch_idx % accumulation_steps == 0:
                     self.optimizer.zero_grad()
 
-                if use_mixed_precision:
+                if use_mixed_precision and scaler is not None:
                     with autocast():
                         outputs = self.model(
                             input_ids=input_ids,
@@ -222,10 +223,8 @@ class Trainer:
                 start_time.record()
                 with torch.no_grad():
                     predicted_ids = outputs["logits"].argmax(dim=-1)
-                    predicted_text = self.model.tokenizer.detokenize(
-                        predicted_ids
-                    )  # Assume tokenizer is accessible
-                    validation_score = self.validator.validate({"text": predicted_text})
+                    predicted_text = self.tokenizer.decode(predicted_ids[0])
+                    validation_score = self.validator.validate(predicted_text)
                 end_time.record()
                 torch.cuda.synchronize()
                 latency = start_time.elapsed_time(end_time) / 1000.0
@@ -291,7 +290,7 @@ class Trainer:
                 else:
                     self.early_stopping_counter = 0
 
-    def validate(self):
+    def validate(self) -> float:
         """Validation loop with consistent output handling."""
         self.model.eval()
         val_loss = 0.0
@@ -318,6 +317,7 @@ class Trainer:
 
 if __name__ == "__main__":
     import argparse
+    from transformers import AutoTokenizer
 
     parser = argparse.ArgumentParser(description="Train a BiblicalTransformer model")
     parser.add_argument(
@@ -328,5 +328,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    trainer = Trainer(args.config)
+    # Initialize tokenizer (adjust as needed for your model)
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")  # Example tokenizer
+    trainer = Trainer(args.config, tokenizer)
     trainer.train()
