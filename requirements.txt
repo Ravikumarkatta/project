@@ -1,9 +1,9 @@
 ﻿# Core Dependencies (Python 3.12+)
 
 # Web Framework
-fastapi==0.68.0
+fastapi>=0.100.0
 uvicorn==0.15.0
-pydantic==1.8.2
+pydantic>=2.0.0
 
 # Machine Learning (Lite)
 torch --index-url https://download.pytorch.org/whl/cpu
@@ -24,6 +24,7 @@ psutil==5.9.0
 # Testing (Core)
 pytest==7.0.0
 pytest-asyncio==0.15.0
+httpx>=0.24.0  # Required by TestClient
 
 # Code Quality
 ruff==0.1.0
