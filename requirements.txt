@@ -41,3 +41,5 @@ jsonschema
 
 beautifulsoup4
 lxml
+
+python-multipart
