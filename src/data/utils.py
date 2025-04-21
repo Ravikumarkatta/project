@@ -1,23 +1,25 @@
 # src/data/utils.py
-from typing import Dict, List, Tuple
-
 import torch
+from typing import Dict, List
 
 
-def collate_fn(
-    batch: List[Dict[str, torch.Tensor]],
-) -> Tuple[torch.Tensor, torch.Tensor]:
+def collate_fn(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
     """
-    Collate function to convert dataset outputs into (input_ids, target_ids) for training.
-
+    Custom collate function for DataLoader to handle variable length sequences.
+    
     Args:
-        batch: List of dictionary items from dataset.
-
+        batch: List of dictionaries with tensors
+        
     Returns:
-        Tuple of (input_ids, target_ids) as tensors.
+        Dictionary with batched tensors
     """
-    input_ids = torch.stack([item["input_ids"] for item in batch])
-    attention_mask = torch.stack([item["attention_mask"] for item in batch])
-    # For language modeling, target_ids are the same as input_ids (shifted in the model)
-    target_ids = input_ids.clone()
-    return input_ids, target_ids
+    batch_dict = {}
+    
+    # Get all keys from the first item
+    keys = batch[0].keys()
+    
+    for key in keys:
+        # Stack tensors for each key
+        batch_dict[key] = torch.stack([item[key] for item in batch])
+    
+    return batch_dict
