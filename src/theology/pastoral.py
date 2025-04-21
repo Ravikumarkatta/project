@@ -7,6 +7,7 @@ Ensures responses are pastorally appropriate and sensitive.
 
 import json
 import re  # Now used for robust matching
+from typing import cast
 from pathlib import Path
 # Removed Set, Tuple as they were unused
 from typing import Any, Dict, List, Optional
@@ -60,7 +61,7 @@ class PastoralSensitivity:
             with rules_file.open("r", encoding="utf-8") as f:
                 rules = json.load(f)
                 self.logger.info(f"Loaded theological rules from {rules_path}")
-                return rules
+                return cast(Dict[str, Any], rules)
 
         except json.JSONDecodeError:
             # Use logger.exception to include traceback
@@ -269,7 +270,7 @@ class PastoralSensitivity:
     def _apply_care_guidelines(self, text_lower: str) -> Dict[str, Any]:
         """Apply general pastoral care guidelines using regex."""
         score = 100.0
-        suggestions = []
+        suggestions = list[str] = []    # Initialize as empty list
 
         # Ensure care_guidelines is a dictionary
         if not isinstance(self.care_guidelines, dict):

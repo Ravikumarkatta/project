@@ -25,20 +25,22 @@ class HermeneuticalPrinciples:
             rules_path (str): Path to theological rules JSON file.
         """
         self.logger = logger
-        self.rules = self._load_rules(rules_path)
-        self.principles = self.rules.get("hermeneutical_principles", {})
-        self.genres = self.rules.get("biblical_genres", {})
-        self.contexts = self.rules.get("interpretive_contexts", {})
+        self.rules: Dict[str, Any] = self._load_rules(rules_path)
+        self.principles: Dict[str, Any] = self.rules.get("hermeneutical_principles", {})
+        self.genres: Dict[str, Any] = self.rules.get("biblical_genres", {})
+        self.contexts: Dict[str, Any] = self.rules.get("interpretive_contexts", {})
 
     def _load_rules(self, rules_path: str) -> Dict[str, Any]:
         """Load theological rules from JSON file."""
-        try:
-            rules_file = Path(rules_path)
-            if not rules_file.exists():
-                raise FileNotFoundError(f"Rules file not found: {rules_path}")
+        rules_file = Path(rules_path)
+        if not rules_file.exists():
+            msg = f"Rules file not found: {rules_path}"
+            self.logger.error(msg)
+            raise FileNotFoundError(msg)
 
+        try:
             with rules_file.open("r", encoding="utf-8") as f:
-                rules = json.load(f)
+                rules: Dict[str, Any] = json.load(f)
                 self.logger.info(f"Loaded theological rules from {rules_path}")
                 return rules
 
@@ -48,6 +50,7 @@ class HermeneuticalPrinciples:
         except Exception as e:
             self.logger.error(f"Failed to load rules: {e}")
             raise
+
 
     def analyze_interpretation(
         self, text: str, verse_refs: List[str], genre: Optional[str] = None

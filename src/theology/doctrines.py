@@ -240,7 +240,7 @@ class DoctrineChecker:
         # Calculate overall doctrinal score and summary
         num_checks = len(results)
         if num_checks > 0:
-            valid_checks = [r for r in results.values() if r.get("valid", False)] # Safer access
+            valid_checks = [r for r in results.values() if bool(r.get("valid", False))] # Safer access
             overall_score = sum(r.get("score", 0.0) for r in results.values()) / num_checks # Safer access
             passed_count = len(valid_checks)
             all_passed = passed_count == num_checks

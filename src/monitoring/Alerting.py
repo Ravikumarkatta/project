@@ -1,4 +1,3 @@
-# bible/src/monitoring/alerting.py
 """
 Alerting system for Bible-AI monitoring.
 
@@ -23,9 +22,9 @@ class AlertingSystem:
     def __init__(
         self,
         metrics_port: int = 8000,
-        smtp_config: Dict[str, str] = None,
+        smtp_config: Optional[Dict[str, str]] = None,
         slack_webhook: Optional[str] = None,
-        thresholds: Optional[Dict] = None,
+        thresholds: Optional[Dict[str, float]] = None,
     ):
         """
         Initialize the alerting system.
@@ -40,19 +39,15 @@ class AlertingSystem:
         self.smtp_config = smtp_config or {}
         self.slack_webhook = slack_webhook
         self.thresholds = thresholds or {
-            "inference_latency": 2.0,  # Alert if average latency > 2 seconds
-            "validation_score": 0.9,  # Alert if score < 0.9
-            "cpu_usage": 80.0,  # Alert if CPU usage > 80%
-            "memory_usage": 5000.0,  # Alert if memory usage > 5000 MB
+            "inference_latency": 2.0,    # Alert if average latency > 2 seconds
+            "validation_score": 0.9,     # Alert if score < 0.9
+            "cpu_usage": 80.0,           # Alert if CPU usage > 80%
+            "memory_usage": 5000.0,      # Alert if memory usage > 5000 MB
         }
-        self.alert_cooldown = (
-            300  # 5 minutes cooldown between alerts for the same metric
-        )
-        self.last_alerted: Dict[str, float] = (
-            {}
-        )  # Track last alert time for each metric
+        self.alert_cooldown = 300  # 5 minutes cooldown between alerts
+        self.last_alerted: Dict[str, float] = {}
 
-    def fetch_metrics(self) -> Dict:
+    def fetch_metrics(self) -> Dict[str, float]:
         """
         Fetch metrics from the Prometheus endpoint.
 
@@ -60,7 +55,7 @@ class AlertingSystem:
             Dictionary of current metric values.
         """
         try:
-            response = requests.get(f"http://localhost:{self.metrics_port}/metrics")
+            response = requests.get(f"http://localhost:{self.metrics_port}/metrics", timeout=5)
             response.raise_for_status()
             lines = response.text.splitlines()
             metrics = {}
@@ -86,25 +81,38 @@ class AlertingSystem:
         if not self.smtp_config:
             logger.warning("SMTP config not provided; skipping email alert")
             return
-        try:
-            msg = MIMEText(message)
-            msg["Subject"] = subject
-            msg["From"] = self.smtp_config["user"]
-            msg["To"] = self.smtp_config["to_email"]
 
-            with smtplib.SMTP(
-                self.smtp_config["host"], self.smtp_config["port"]
-            ) as server:
-                server.starttls()
-                server.login(self.smtp_config["user"], self.smtp_config["password"])
-                server.sendmail(
-                    self.smtp_config["user"],
-                    self.smtp_config["to_email"],
-                    msg.as_string(),
-                )
-            logger.info(f"Sent email alert: {subject}")
-        except Exception as e:
-            logger.error(f"Error sending email alert: {e}")
+        smtp_host = self.smtp_config.get("host", "")
+        smtp_port = int(self.smtp_config.get("port", 587))
+        smtp_user = self.smtp_config.get("user", "")
+        smtp_password = self.smtp_config.get("password", "")
+        to_email = self.smtp_config.get("to_email", "")
+
+        if not all([smtp_host, smtp_user, smtp_password, to_email]):
+            logger.error("Incomplete SMTP configuration; skipping email alert")
+            return
+
+        for attempt in range(3):  # Retry up to 3 times
+            try:
+                msg = MIMEText(message)
+                msg["Subject"] = subject
+                msg["From"] = smtp_user
+                msg["To"] = to_email
+
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.starttls()
+                    server.login(smtp_user, smtp_password)
+                    server.sendmail(
+                        smtp_user,
+                        [to_email],  # list of recipients
+                        msg.as_string(),
+                    )
+                logger.info(f"Sent email alert: {subject}")
+                return
+            except Exception as e:
+                logger.error(f"Attempt {attempt+1}: Error sending email alert: {e}")
+                time.sleep(2)  # Wait 2 seconds before retrying
+        logger.error(f"Failed to send email alert after 3 attempts.")
 
     def send_slack_alert(self, message: str) -> None:
         """
@@ -118,7 +126,7 @@ class AlertingSystem:
             return
         try:
             payload = {"text": message}
-            response = requests.post(self.slack_webhook, json=payload)
+            response = requests.post(self.slack_webhook, json=payload, timeout=5)
             response.raise_for_status()
             logger.info("Sent Slack alert")
         except Exception as e:
@@ -129,36 +137,15 @@ class AlertingSystem:
         metrics = self.fetch_metrics()
         current_time = time.time()
 
-        # Calculate average inference latency
-        latency_sum = metrics.get("bibleai_inference_latency_seconds_sum", 0)
-        latency_count = metrics.get("bibleai_inference_latency_seconds_count", 1)
-        avg_latency = latency_sum / max(1, latency_count)
+        latency_sum = metrics.get("bibleai_inference_latency_seconds_sum", 0.0)
+        latency_count = metrics.get("bibleai_inference_latency_seconds_count", 1.0)
+        avg_latency = latency_sum / max(1.0, latency_count)
 
         checks = [
-            (
-                "inference_latency",
-                avg_latency,
-                self.thresholds["inference_latency"],
-                "gt",
-            ),
-            (
-                "validation_score",
-                metrics.get("bibleai_theological_validation_score", 1.0),
-                self.thresholds["validation_score"],
-                "lt",
-            ),
-            (
-                "cpu_usage",
-                metrics.get("bibleai_cpu_usage_percent", 0),
-                self.thresholds["cpu_usage"],
-                "gt",
-            ),
-            (
-                "memory_usage",
-                metrics.get("bibleai_memory_usage_mb", 0),
-                self.thresholds["memory_usage"],
-                "gt",
-            ),
+            ("inference_latency", avg_latency, self.thresholds["inference_latency"], "gt"),
+            ("validation_score", metrics.get("bibleai_theological_validation_score", 1.0), self.thresholds["validation_score"], "lt"),
+            ("cpu_usage", metrics.get("bibleai_cpu_usage_percent", 0.0), self.thresholds["cpu_usage"], "gt"),
+            ("memory_usage", metrics.get("bibleai_memory_usage_mb", 0.0), self.thresholds["memory_usage"], "gt"),
         ]
 
         for metric_name, value, threshold, comparison in checks:
@@ -179,17 +166,15 @@ class AlertingSystem:
 
 
 if __name__ == "__main__":
-    # Example SMTP configuration
     smtp_config = {
         "host": "smtp.example.com",
-        "port": 587,
+        "port": "587",
         "user": "your-email@example.com",
         "password": "your-password",
         "to_email": "alert-recipient@example.com",
     }
     slack_webhook = "https://hooks.slack.com/services/your/webhook/url"
 
-    # Initialize and run the alerting system
     alerting = AlertingSystem(
         metrics_port=8000,
         smtp_config=smtp_config,

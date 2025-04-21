@@ -148,88 +148,72 @@ class DenominationalAdjuster:
 
 
         # Check denominational positions
-        # Ensure positions is a dict
-        if isinstance(self.positions, dict) and denomination in self.positions:
+        if not isinstance(self.positions, dict):
+            self.logger.warning("Denominational positions rules not loaded correctly (not a dict). Skipping position checks.")
+        elif denomination in self.positions:
             denom_positions = self.positions[denomination]
-            # Ensure denom_positions is a dict
             if isinstance(denom_positions, dict):
                 for position, details in denom_positions.items():
-                    # Ensure details is a dict
                     if not isinstance(details, dict):
-                         self.logger.warning(f"Invalid structure for position '{position}' for denomination '{denomination}'. Expected dict.")
-                         continue
-
-                    # Use .get with default empty list
+                        self.logger.warning(f"Invalid structure for position '{position}' for denomination '{denomination}'. Expected dict.")
+                        continue
                     required = details.get("required", [])
                     forbidden = details.get("forbidden", [])
 
-                    # Check required positions (handles string or list)
                     if required and not self._check_phrase_list_or_string(text_lower, required):
-                        # Generate a representative name for the missing requirement
                         req_name = required[0] if isinstance(required, list) and required else required if isinstance(required, str) else "requirement"
                         issues.append(f"Missing {denomination} position on {position} (e.g., '{req_name}')")
-                        score += self._POSITION_REQUIRED_MISSING_PENALTY # Use constant
+                        score += self._POSITION_REQUIRED_MISSING_PENALTY
 
-                    # Check forbidden positions (handles string or list)
                     if forbidden and self._check_phrase_list_or_string(text_lower, forbidden):
                         forb_name = forbidden[0] if isinstance(forbidden, list) and forbidden else forbidden if isinstance(forbidden, str) else "forbidden element"
-                        issues.append(
-                            f"Contains position contrary to {denomination} on {position} (found related to '{forb_name}')"
-                        )
-                        score += self._POSITION_FORBIDDEN_PRESENT_PENALTY # Use constant
+                        issues.append(f"Contains position contrary to {denomination} on {position} (found related to '{forb_name}')")
+                        score += self._POSITION_FORBIDDEN_PRESENT_PENALTY
             else:
-                 self.logger.warning(f"Invalid structure for positions for denomination '{denomination}'. Expected dict.")
-        elif isinstance(self.positions, dict):
-             self.logger.debug(f"No specific positions found for denomination '{denomination}'.")
+                self.logger.warning(f"Invalid structure for positions for denomination '{denomination}'. Expected dict.")
         else:
-             self.logger.warning("Denominational positions rules not loaded correctly (not a dict). Skipping position checks.")
-
+            self.logger.debug(f"No specific positions found for denomination '{denomination}'.")
 
         # Check sensitivity areas
-        # Ensure sensitivities is a dict
-        if isinstance(self.sensitivities, dict) and denomination in self.sensitivities:
+        if not isinstance(self.sensitivities, dict):
+            self.logger.warning("Denominational sensitivities rules not loaded correctly (not a dict). Skipping sensitivity checks.")
+        elif denomination in self.sensitivities:
             denom_sensitivities = self.sensitivities[denomination]
-            # Ensure denom_sensitivities is a dict
             if isinstance(denom_sensitivities, dict):
                 for area, terms in denom_sensitivities.items():
-                    # Ensure terms is a list
                     if not isinstance(terms, list):
-                         self.logger.warning(f"Invalid structure for sensitivity area '{area}' for denomination '{denomination}'. Expected list of terms.")
-                         continue
+                        self.logger.warning(f"Invalid structure for sensitivity area '{area}' for denomination '{denomination}'. Expected list of terms.")
+                        continue
 
                     for term in terms:
-                        # Ensure term is a non-empty string
                         if isinstance(term, str) and term:
-                            # Use regex word boundaries
                             if re.search(rf"\b{re.escape(term.lower())}\b", text_lower):
-                                context = self._extract_term_context(text_lower, term.lower()) # Use lowercased text/term
+                                context = self._extract_term_context(text_lower, term.lower())
                                 issues.append(
                                     f"Sensitive term '{term}' related to '{area}' used in context: {context}"
                                 )
-                                score += self._SENSITIVITY_TERM_PENALTY # Use constant
+                                score += self._SENSITIVITY_TERM_PENALTY
                         else:
-                             self.logger.warning(f"Invalid sensitivity term found for area '{area}', denomination '{denomination}': {term}")
+                            self.logger.warning(f"Invalid sensitivity term found for area '{area}', denomination '{denomination}': {term}")
             else:
-                 self.logger.warning(f"Invalid structure for sensitivities for denomination '{denomination}'. Expected dict.")
-        elif isinstance(self.sensitivities, dict):
-             self.logger.debug(f"No specific sensitivities found for denomination '{denomination}'.")
+                self.logger.warning(f"Invalid structure for sensitivities for denomination '{denomination}'. Expected dict.")
         else:
-             self.logger.warning("Denominational sensitivities rules not loaded correctly (not a dict). Skipping sensitivity checks.")
+            self.logger.debug(f"No specific sensitivities found for denomination '{denomination}'.")
 
 
         # Normalize score
         score = max(0.0, min(100.0, score))
 
         # Determine overall validity based on score threshold from rules (or default)
-        min_score = 70.0 # Default minimum score
-        if isinstance(self.rules, dict): # Check if self.rules is a dict before accessing
-             min_score = self.rules.get("minimum_score", 70.0)
-             # Ensure min_score is a number
-             if not isinstance(min_score, (int, float)):
-                  self.logger.warning(f"Invalid 'minimum_score' in rules config ({min_score}). Using default 70.0.")
-                  min_score = 70.0
+        min_score = 70.0  # Default minimum score
+        if isinstance(self.rules, dict):  # Check if self.rules is a dict before accessing
+            min_score = self.rules.get("minimum_score", 70.0)
+            # Ensure min_score is a number
+            if not isinstance(min_score, (int, float)):
+                self.logger.warning(f"Invalid 'minimum_score' in rules config ({min_score}). Using default 70.0.")
+                min_score = 70.0
         else:
-             self.logger.warning("Rules not loaded correctly (not a dict). Using default minimum score 70.0.")
+            self.logger.warning("Rules not loaded correctly (not a dict). Using default minimum score 70.0.")
 
 
         return {
@@ -266,12 +250,16 @@ class DenominationalAdjuster:
     def get_denominational_positions(self, denomination: str) -> Dict[str, Any]:
         """Get theological positions for a denomination."""
         # Ensure positions is a dict before accessing
-        if isinstance(self.positions, dict):
-             # FIX: Removed unnecessary type: ignore
-             return self.positions.get(denomination, {})
-        self.logger.warning("Denominational positions not loaded correctly, cannot get positions.")
-        return {}
-
+        if not isinstance(self.positions, dict):
+            self.logger.warning("Denominational positions not loaded correctly, cannot get positions.")
+            return {}
+        
+        result = self.positions.get(denomination)
+        if isinstance(result, dict):
+            return result
+        else:
+            self.logger.warning(f"Invalid structure for positions for denomination '{denomination}'. Expected dict.")
+            return {}
 
     def get_supported_denominations(self) -> List[str]:
         """Get list of supported denominations."""
@@ -297,9 +285,7 @@ class DenominationalAdjuster:
         return {}
 
 
-    def validate_denominational_consistency(
-        self, text: str, denomination: str
-    ) -> Dict[str, Any]:
+    def validate_denominational_consistency(self, text: str, denomination: str) -> Dict[str, Any]:
         """
         Validate text for denominational consistency using regex matching.
 
@@ -312,46 +298,46 @@ class DenominationalAdjuster:
         """
         # First adjust the text and get initial validation
         adjustment_result = self.adjust_for_denomination(text, denomination)
-
-        # Use the adjusted text for further checks
         adjusted_text = adjustment_result.get("adjusted_text", "")
         issues = adjustment_result.get("issues", [])
-        score = adjustment_result.get("score", 100.0) # Start with score from adjustment
+        score = adjustment_result.get("score", 100.0)
 
-        # Check for mixed denominational terminology in the *adjusted* text
-        mixed_terms_issues = self._check_mixed_terminology(adjusted_text, denomination)
-        if mixed_terms_issues:
-            issues.extend(mixed_terms_issues)
-            # Apply penalty for each mixed term found
-            score += self._MIXED_TERMINOLOGY_PENALTY_PER_TERM * len(mixed_terms_issues) # Use constant
+        # Check for mixed terminology
+        mixed_issues = self._check_mixed_terminology(adjusted_text, denomination)
+        if mixed_issues:
+            issues.extend(mixed_issues)
+            # Adjust score for each mixed terminology issue found
+            score += len(mixed_issues) * self._MIXED_TERMINOLOGY_PENALTY_PER_TERM
 
-        # Normalize final score
+        # Clamp score between 0 and 100
         score = max(0.0, min(100.0, score))
 
-        # Determine overall validity based on score threshold from rules (or default)
-        min_score = 70.0 # Default minimum score
-        if isinstance(self.rules, dict): # Check if self.rules is a dict before accessing
-             min_score = self.rules.get("minimum_score", 70.0)
-             if not isinstance(min_score, (int, float)):
-                  self.logger.warning(f"Invalid 'minimum_score' in rules config ({min_score}). Using default 70.0.")
-                  min_score = 70.0
+        # Safely determine min_score
+        min_score = 70.0
+        if isinstance(self.rules, dict):
+            maybe_min_score = self.rules.get("minimum_score", 70.0)
+            if isinstance(maybe_min_score, (int, float)):
+                min_score = maybe_min_score
+            else:
+                self.logger.warning(f"Invalid 'minimum_score' in rules config ({maybe_min_score}). Using default 70.0.")
         else:
-             self.logger.warning("Rules not loaded correctly (not a dict). Using default minimum score 70.0.")
+            self.logger.warning("Rules not loaded correctly (not a dict). Using default minimum score 70.0.")
 
-
+        # Now return AFTER everything is checked
         return {
             "valid": score >= min_score,
+            "adjusted_text": adjusted_text,
             "score": score,
+            "details": "; ".join(issues) if issues else "No adjustments or issues found",
             "issues": issues,
-            "mixed_terminology": mixed_terms_issues, # Report only the issues found here
-            "adjusted_text": adjusted_text, # Return the final adjusted text
         }
+
 
     def _check_mixed_terminology(
         self, text: str, primary_denomination: str
     ) -> List[str]:
         """Check for mixed denominational terminology using regex matching."""
-        issues = []
+        issues: List[str] = []
         text_lower = text.lower() # Lowercase once for checking
 
         # Ensure variations is a dict before iterating
@@ -387,4 +373,3 @@ class DenominationalAdjuster:
                          )
 
         return issues
-

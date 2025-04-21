@@ -30,7 +30,7 @@ class ControversialHandler:
         self.controversial_topics = self.rules.get("controversial_topics", {})
         self.historical_debates = self.rules.get("historical_debates", {})
         self.modern_issues = self.rules.get("modern_issues", {})
-
+        
     def _load_rules(self, rules_path: str) -> Dict[str, Any]:
         """Load theological rules from JSON file."""
         try:
@@ -50,9 +50,7 @@ class ControversialHandler:
             self.logger.error(f"Failed to load rules: {e}")
             raise
 
-    def analyze_topic(
-        self, text: str, topic_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def analyze_topic(self, text: str, topic_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze text for controversial topics.
 
@@ -63,8 +61,8 @@ class ControversialHandler:
         Returns:
             Dict[str, Any]: Analysis results.
         """
-        text = text.lower().strip()
-        if not text:
+        cleaned_text = text.lower().strip()
+        if not cleaned_text:
             return {
                 "controversial": False,
                 "topics": [],
@@ -77,27 +75,27 @@ class ControversialHandler:
         score = 100.0
 
         # Check specific topic if provided
-        if topic_id:
-            if topic_id in self.controversial_topics:
-                topic_result = self._analyze_single_topic(text, topic_id)
-                return { # type: ignore
-                    "controversial": topic_result["detected"],
-                    "topics": [topic_result] if topic_result["detected"] else [],
-                    "suggestions": topic_result["suggestions"],
-                    "score": topic_result["score"],
-                }
-            else:
-                self.logger.warning(f"Unknown controversial topic: {topic_id}")
-                return { # type: ignore
-                    "controversial": False,
-                    "topics": [],
-                    "suggestions": [f"Unknown topic: {topic_id}"],
-                    "score": 100.0,
-                }
+        if topic_id is not None:
+          if topic_id not in self.controversial_topics:
+                 self.logger.warning(f"Unknown controversial topic: {topic_id}")
+                 return {
+                     "controversial": False,
+                     "topics": [],
+                     "suggestions": [f"Unknown topic: {topic_id}"],
+                     "score": 100.0,
+                 }
+                
+          topic_result = self._analyze_single_topic(cleaned_text, topic_id)
+          return {
+                "controversial": topic_result["detected"],
+                "topics": [topic_result],
+                "suggestions": topic_result["suggestions"],
+                "score": topic_result["score"],
+            }
 
         # Analyze all topics
         for topic_id, topic_rules in self.controversial_topics.items():
-            topic_result = self._analyze_single_topic(text, topic_id)
+            topic_result = self._analyze_single_topic(cleaned_text, topic_id)
             if topic_result["detected"]:
                 detected_topics.append(topic_result)
                 suggestions.extend(topic_result["suggestions"])
@@ -253,7 +251,7 @@ class ControversialHandler:
         return self.controversial_topics.get(topic_id) # type: ignore
 
     def list_controversial_topics(self) -> Dict[str, List[str]]:
-        """Get categorized list of controversial topics.""" # type: ignore
+        """Get categorized list of controversial topics."""
         return {
             "traditional": list(self.controversial_topics.keys()),
             "historical": list(self.historical_debates.keys()),

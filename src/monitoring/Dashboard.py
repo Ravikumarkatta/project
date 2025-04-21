@@ -6,7 +6,7 @@ Displays metrics like inference latency, theological validation scores, pipeline
 and system resource usage.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import dash
 import pandas as pd

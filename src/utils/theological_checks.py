@@ -11,21 +11,21 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, TypedDict, cast
 
 # Try to import the logger we just created
 try:
     from src.utils.logger import get_logger
 except ImportError:
     # Fallback if the import path is different
-    from utils.logger import get_logger
-
-
-import logging
+    try:
+        from utils.logger import get_logger
+    except ImportError:
+        import logging
 
         # Simple logger fallback if our custom logger isn't available
-        #get_logger = lambda name: logging.getLogger(name)
-        
+        get_logger = lambda name: logging.getLogger(name)
+
 # Initialize module logger
 logger = get_logger("theological_checks")
 
@@ -57,15 +57,15 @@ class TheologicalChecker:
         self.essential_doctrines: Set[str] = set()
         self.load_theological_data(rules_path, doctrines_path, denominations_path)
 
-        # Dictionary of regex patterns for quick lookup        
-        self.pattern_cache = {}
+        # Dictionary of regex patterns for quick lookup
+        self.pattern_cache: Dict[str, re.Pattern] = {}
 
     def load_theological_data(
         self,
         rules_path: Optional[str] = None,
         doctrines_path: Optional[str] = None,
         denominations_path: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Load theological rules and reference data from JSON files.
 
@@ -74,7 +74,7 @@ class TheologicalChecker:
             doctrines_path: Path to doctrines definitions JSON file
             denominations_path: Path to denominational positions JSON file
         """
-        # Default paths if not provided        
+        # Default paths if not provided
         base_path = Path(os.path.abspath(__file__)).parent.parent.parent
         config_path = base_path / "config"
 
@@ -139,13 +139,13 @@ class TheologicalChecker:
             context: Optional context information (e.g., "Bible_study", "QA")
 
         Returns:
-            Dictionary with check results            
+            Dictionary with check results
         """
         results: Dict[str, Any] = {
             "passed": True,
-            "checks": [], # type: ignore
-            "warnings": [], # type: ignore
-            "errors": [], # type: ignore
+            "checks": [],
+            "warnings": [],
+            "errors": [],
             "score": 100.0,
             "context": context,
         }
@@ -164,29 +164,30 @@ class TheologicalChecker:
             if check_result["severity"] == "error" and not check_result["passed"]:
                 results["passed"] = False
                 results["errors"].append(check_result)
-                # Major deduction for errors                
+                # Major deduction for errors
                 results["score"] -= 20.0
             elif check_result["severity"] == "warning" and not check_result["passed"]:
                 results["warnings"].append(check_result)
-                # Minor deduction for warnings                
+                # Minor deduction for warnings
                 results["score"] -= 5.0
 
         # Ensure score doesn't go below 0
-        results["score"] = max(0, results["score"]) # type: ignore
+        results["score"] = max(0, float(results["score"]))
 
         # Log the results
         if results["passed"]:
             logger.info(
                 f"Theological check passed with score {results['score']}",
-                denomination=denomination or "general",
-                context=context,
+                extra={"denomination": denomination or "general", "context": context},
             )
         else:
             logger.warning(
                 f"Theological check failed with score {results['score']}",
-                denomination=denomination or "general",
-                context=context,
-                error_count=len(results["errors"]),
+                extra={
+                    "denomination": denomination or "general",
+                    "context": context,
+                    "error_count": len(results["errors"]),
+                },
             )
 
         return results
@@ -202,7 +203,7 @@ class TheologicalChecker:
             Dictionary of applicable rules
         """
         # Start with general rules
-        applicable_rules = {}
+        applicable_rules: Dict[str, Any] = {}
         if "general" in self.rules:
             applicable_rules.update(self.rules["general"])
 
@@ -213,7 +214,7 @@ class TheologicalChecker:
 
         return applicable_rules
 
-    def _apply_rule(self, content: str, rule: Dict, rule_name: str) -> Dict:
+    def _apply_rule(self, content: str, rule: Dict[str, Any], rule_name: str) -> Dict[str, Any]:
         """
         Apply a single theological rule to content.
 
@@ -222,10 +223,10 @@ class TheologicalChecker:
             rule: Rule definition
             rule_name: Name of the rule
 
-        Returns:            
+        Returns:
             Dictionary with check result
         """
-        result = {
+        result: Dict[str, Any] = {
             "rule": rule_name,
             "passed": True,
             "description": rule.get("description", ""),
@@ -233,7 +234,7 @@ class TheologicalChecker:
             "matches": [],
         }
 
-        # Handle different rule types        
+        # Handle different rule types
         rule_type = rule.get("type", "pattern")
 
         if rule_type == "pattern":
@@ -262,8 +263,8 @@ class TheologicalChecker:
                             }
                         )
 
-                    # If forbidden pattern is found, rule fails                    
-                    # If required pattern is not found, rule fails                    
+                    # If forbidden pattern is found, rule fails
+                    # If required pattern is not found, rule fails
                     result["passed"] = not is_forbidden
                     break
 
@@ -276,10 +277,10 @@ class TheologicalChecker:
             required_refs = rule.get("references", [])
             found_refs = set(self._extract_verse_references(content))
 
-            missing_refs = []
+            missing_refs: List[str] = []
             for ref in required_refs:
                 # Check if any extracted reference contains the required reference
-                if not any(ref.lower() in found.lower() for found in found_refs):                    
+                if not any(ref.lower() in found.lower() for found in found_refs):
                     missing_refs.append(ref)
 
             if missing_refs:
@@ -294,7 +295,7 @@ class TheologicalChecker:
             for keyword in keywords:
                 if keyword.lower() in content.lower():
                     # Simple implementation - could be enhanced with real sentiment analysis
-                    context = self._extract_keyword_context(content, keyword)                    
+                    context = self._extract_keyword_context(content, keyword)
 
                     # Check for negative context words
                     negative_context = any(
@@ -318,7 +319,7 @@ class TheologicalChecker:
             content: Text to extract from
 
         Returns:
-            List of verse references            
+            List of verse references
         """
         # Simple regex pattern for verse references
         # This could be enhanced with a more sophisticated verse detection module
@@ -327,7 +328,7 @@ class TheologicalChecker:
             r"\b(\d?\s?[A-Za-z]+\s\d+)",  # Genesis 1
         ]
 
-        references = []
+        references: List[str] = []
         for pattern in patterns:
             refs = re.findall(pattern, content)
             references.extend(refs)
@@ -346,7 +347,7 @@ class TheologicalChecker:
             window: Number of words around keyword
 
         Returns:
-            Context string            
+            Context string
         """
         # Find keyword position (case insensitive)
         pos = content.lower().find(keyword.lower())
@@ -381,9 +382,9 @@ class TheologicalChecker:
             doctrine_area: Doctrine area name (e.g., "Trinity", "Salvation")
 
         Returns:
-            Dictionary with check results            
+            Dictionary with check results
         """
-        results = {
+        results: Dict[str, Any] = {
             "passed": True,
             "doctrine_area": doctrine_area,
             "errors": [],
@@ -392,7 +393,7 @@ class TheologicalChecker:
 
         # Get doctrine definition
         doctrine = self.doctrines.get(doctrine_area)
-        if not doctrine:            
+        if not doctrine:
             logger.warning(f"No definition found for doctrine: {doctrine_area}")
             results["warnings"].append(f"Unknown doctrine area: {doctrine_area}")
             return results
@@ -402,7 +403,7 @@ class TheologicalChecker:
         for term in required_terms:
             if term.lower() not in content.lower():
                 results["passed"] = False
-                results["errors"].append(f"Missing required theological term: {term}") # type: ignore
+                results["errors"].append(f"Missing required theological term: {term}")
 
         # Check forbidden theological terms/statements
         forbidden_terms = doctrine.get("forbidden_terms", [])
@@ -416,7 +417,7 @@ class TheologicalChecker:
             verse_refs = self._extract_verse_references(content)
             if not verse_refs:
                 results["passed"] = False
-                results["errors"].append("Missing scriptural support") # type: ignore
+                results["errors"].append("Missing scriptural support")
 
         # Check specific scriptural references if provided
         key_verses = doctrine.get("key_verses", [])
@@ -431,7 +432,7 @@ class TheologicalChecker:
 
             if not found_key_verse and doctrine.get("requires_key_verse", False):
                 results["passed"] = False
-                results["warnings"].append("Missing key scriptural reference") # type: ignore
+                results["warnings"].append("Missing key scriptural reference")
 
         # Log the result
         if results["passed"]:
@@ -439,7 +440,7 @@ class TheologicalChecker:
         else:
             logger.warning(
                 f"Doctrine check failed for {doctrine_area}",
-                error_count=len(results["errors"]),
+                extra={"error_count": len(results["errors"])},
             )
 
         return results
@@ -455,9 +456,9 @@ class TheologicalChecker:
             denomination: Denomination name
 
         Returns:
-            Dictionary with check results            
+            Dictionary with check results
         """
-        results = {"passed": True, "denomination": denomination, "warnings": []}
+        results: Dict[str, Any] = {"passed": True, "denomination": denomination, "warnings": []}
 
         # Get denominational positions
         if denomination not in self.denominational_positions:
@@ -474,7 +475,7 @@ class TheologicalChecker:
             for contradiction in contradictions:
                 if contradiction.lower() in content.lower():
                     results["passed"] = False
-                    results["warnings"].append( # type: ignore
+                    results["warnings"].append(
                         f"Content contradicts {denomination} position on {position_name}: "
                         f"Contains '{contradiction}'"
                     )
@@ -490,7 +491,7 @@ class TheologicalChecker:
 
                 if not affirmed:
                     results["passed"] = False
-                    results["warnings"].append( # type: ignore
+                    results["warnings"].append(
                         f"Content lacks affirmation of {denomination} position on {position_name}"
                     )
 
@@ -499,7 +500,7 @@ class TheologicalChecker:
         for term in sensitive_terms:
             if term.lower() in content.lower():
                 context = self._extract_keyword_context(content, term)
-                results["passed"] = False                
+                results["passed"] = False
                 results["warnings"].append(
                     f"Content contains potentially insensitive language about {denomination}: "
                     f"'{term}' in context '{context}'"
@@ -526,9 +527,9 @@ class TheologicalChecker:
             approach: Hermeneutical approach to apply
 
         Returns:
-            Dictionary with check results            
+            Dictionary with check results
         """
-        results = {"passed": True, "approach": approach, "warnings": []}
+        results: Dict[str, Any] = {"passed": True, "approach": approach, "warnings": []}
 
         # Basic checks for common hermeneutical issues
 
@@ -538,7 +539,7 @@ class TheologicalChecker:
             has_context = any(term in content.lower() for term in context_terms)
 
             if not has_context:
-                results["warnings"].append( # type: ignore
+                results["warnings"].append(
                     "Content may not adequately consider scriptural context"
                 )
 
@@ -556,7 +557,7 @@ class TheologicalChecker:
             if (
                 not has_historical and len(content) > 300
             ):  # Only check substantial content
-                results["warnings"].append( # type: ignore
+                results["warnings"].append(
                     "Content may not adequately consider historical-cultural context"
                 )
 
@@ -568,7 +569,7 @@ class TheologicalChecker:
                 r"(preceding|following|context|chapter|book)", content, re.IGNORECASE
             )
             if not context_indicators:
-                results["warnings"].append( # type: ignore
+                results["warnings"].append(
                     "Content may be interpreting a single verse in isolation"
                 )
 
@@ -582,7 +583,7 @@ class TheologicalChecker:
 
         for pattern in spiritualized_patterns:
             if re.search(pattern, content, re.IGNORECASE):
-                results["warnings"].append( # type: ignore
+                results["warnings"].append(
                     f"Content may contain overly spiritualized interpretation: '{pattern}'"
                 )
 
@@ -609,14 +610,14 @@ class TheologicalChecker:
             denomination: Optional denomination to consider
 
         Returns:
-            Dictionary with theological analysis results            
+            Dictionary with theological analysis results
         """
-        report = {
+        report: Dict[str, Any] = {
             "timestamp": datetime.datetime.now().isoformat(),
             "content_length": len(content),
             "denomination": denomination,
             "overall_passed": True,
-            "essential_doctrine": {"passed": True, "issues": []}, # type: ignore
+            "essential_doctrine": {"passed": True, "issues": []},
             "hermeneutics": {"passed": True, "issues": []},
             "denominational_sensitivity": {"passed": True, "issues": []},
             "recommendations": [],
@@ -631,7 +632,7 @@ class TheologicalChecker:
                     report["overall_passed"] = False
 
                     for error in doctrine_result.get("errors", []):
-                        report["essential_doctrine"]["issues"].append( # type: ignore
+                        report["essential_doctrine"]["issues"].append(
                             {"doctrine": doctrine, "issue": error}
                         )
 
@@ -642,7 +643,7 @@ class TheologicalChecker:
             report["overall_passed"] = False
 
             for warning in hermeneutics_result.get("warnings", []):
-                report["hermeneutics"]["issues"].append({"issue": warning}) # type: ignore
+                report["hermeneutics"]["issues"].append({"issue": warning})
 
         # Check denominational sensitivity if denomination provided
         if denomination:
@@ -654,7 +655,7 @@ class TheologicalChecker:
                 report["overall_passed"] = False
 
                 for warning in sensitivity_result.get("warnings", []):
-                    report["denominational_sensitivity"]["issues"].append( # type: ignore
+                    report["denominational_sensitivity"]["issues"].append(
                         {"issue": warning}
                     )
 
