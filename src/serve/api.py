@@ -26,6 +26,7 @@ from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfi
 # Import with fallback implementation for MetricsCollector
 try:
     from src.monitoring.Metrics import MetricsCollector
+    metrics_collector_class = MetricsCollector
 except ImportError:
     class FallbackMetricsCollector:
         def __init__(self, port: int) -> None:
@@ -46,20 +47,22 @@ except ImportError:
         
         def track_validation_score(self, scores: Dict[str, float]) -> None:
             pass
-    MetricsCollector = FallbackMetricsCollector
+    metrics_collector_class = FallbackMetricsCollector
 
 # Import with fallback implementation for RateLimiter
 try:
     from src.serve.rate_limiter import RateLimiter
+    rate_limiter_class = RateLimiter
 except ImportError:
-    class RateLimiter:
+    class FallbackRateLimiter:
         def __init__(self, requests_per_minute: int, burst_limit: int) -> None:
             self.requests_per_minute = requests_per_minute
             self.burst_limit = burst_limit
         
         async def limit(self, request: Request) -> str:
             client_ip = request.client.host if request.client else "unknown"
-            return str(client_ip)  # Ensure string return
+            return str(client_ip)
+    rate_limiter_class = FallbackRateLimiter
 
 from src.serve.cache import Cache
 from src.serve.verse_resolver import VerseResolver
@@ -123,12 +126,12 @@ app.add_middleware(
 
 # Initialize dependencies
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-rate_limiter = RateLimiter(
+rate_limiter = rate_limiter_class(
     requests_per_minute=security_config["rate_limiting"]["requests_per_minute"],
     burst_limit=security_config["rate_limiting"]["burst_limit"],
 )
 cache = Cache(ttl=frontend_config["api"]["cache_ttl"])
-metrics_collector = MetricsCollector(port=8000)
+metrics_collector = metrics_collector_class(port=8000)
 validator = TheologicalValidator()
 adjuster = DenominationalAdjuster()
 handler = ControversialHandler()
@@ -195,7 +198,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str
 async def login(user: UserLogin) -> Token:
     """Authenticate user and issue JWT token."""
     # Mock user validation (replace with real DB check)
-    stored_password_hash = hash_password("example_password")  # Single argument
+    stored_password_hash = hash_password("example_password")  # Ensure single argument
     if user.username != "admin" or not verify_password(user.password, stored_password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -293,6 +296,8 @@ async def generate_text(
 
         # Theological validation
         scores = validator.validate(predicted_text)
+        if isinstance(scores, float):
+            scores = {"overall": scores}  # Convert float to dict if needed
         if not isinstance(scores, dict):
             raise ValueError(f"Expected dict from validator, got {type(scores)}")
         validation_score = scores.get("overall", 0.0)
