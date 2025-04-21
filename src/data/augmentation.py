@@ -1,4 +1,3 @@
-# bible/src/data/augmentation.py
 """
 Ultimate Text & Biblical Data Augmentation Module for Bible-AI
 
@@ -10,6 +9,7 @@ This module merges the best features from previous implementations:
 Dependencies:
 - nltk (for synonym replacement, POS tagging, tokenization)
 - concurrent.futures (for parallel processing)
+- jsonschema (optional, for config validation)
 - Custom modules: src.utils.logger, src.bible_manager.converter, src.bible_manager.storage,
   src.theology.validator
 """
@@ -21,9 +21,9 @@ import random
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple, Any  # Added Any import here
+from typing import Dict, List, Optional, Set, Any
 
-# NLTK setup - note these imports might need stubs
+# NLTK setup - ensure nltk and types-nltk are installed
 import nltk
 from nltk.corpus import wordnet
 from nltk.tag import pos_tag
@@ -36,7 +36,13 @@ except LookupError:
     nltk.download("punkt", quiet=True)
     nltk.download("averaged_perceptron_tagger", quiet=True)
 
-# Project-specific imports with fallbacks
+# Optional: jsonschema for config validation
+try:
+    from jsonschema import validate
+except ImportError:
+    validate = lambda instance, schema: None  # Fallback if jsonschema is missing
+
+# Project-specific imports with mock fallbacks
 try:
     from src.bible_manager.converter import BibleConverter
     from src.bible_manager.storage import BibleStorage
@@ -45,15 +51,51 @@ try:
 except ImportError as e:
     logging.basicConfig(level=logging.INFO)
     get_logger = lambda name: logging.getLogger(name)
-    # Fix: Don't assign None to types, initialize with None values
-    BibleConverter = None  # type: Optional[type]
-    BibleStorage = None    # type: Optional[type]
-    TheologicalValidator = None  # type: Optional[type]
     logger = get_logger("UltimateAugmenter")
     logger.warning("Missing dependencies: %s. Some features may be limited.", e)
+    class MockBibleConverter:
+        def __init__(self, config_path: Optional[str] = None):
+            pass
+
+    class MockBibleStorage:
+        def __init__(self, config_path: Optional[str] = None):
+            pass
+        def save(self, data: Dict[str, Any], path: str) -> None:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
+    class MockTheologicalValidator:
+        def __init__(self, config: str):
+            pass
+        def validate(self, text: Any) -> float:
+            logger.warning("Using mock validator; assuming valid.")
+            return 1.0
+
+    BibleConverter = MockBibleConverter
+    BibleStorage = MockBibleStorage
+    TheologicalValidator = MockTheologicalValidator
 
 logger = get_logger("UltimateAugmenter")
 
+# Config schema for validation
+CONFIG_SCHEMA = {
+    "type": "object",
+    "required": ["translation_paths", "theological_terms"],
+    "properties": {
+        "translation_paths": {"type": "object"},
+        "theological_terms": {"type": "array", "items": {"type": "string"}},
+        "prob_synonym_replacement": {"type": "number"},
+        "max_synonym_replacements": {"type": "integer"},
+        "prob_deletion": {"type": "number"},
+        "prob_swap": {"type": "number"},
+        "prob_insertion": {"type": "number"},
+        "prob_verse_shuffle": {"type": "number"},
+        "prob_translation_swap": {"type": "number"},
+        "min_context_verses": {"type": "integer"},
+        "max_context_verses": {"type": "integer"},
+        "theology": {"type": "object"},
+    },
+}
 
 # -------------------------------
 # Generic Text Augmentation Class
@@ -61,7 +103,7 @@ logger = get_logger("UltimateAugmenter")
 class GenericAugmenter:
     """Provides generic text augmentation methods with theological safeguards."""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict[str, Any]):
         self.prob_synonym_replacement = config.get("prob_synonym_replacement", 0.1)
         self.max_synonym_replacements = config.get("max_synonym_replacements", 3)
         self.prob_deletion = config.get("prob_deletion", 0.05)
@@ -154,16 +196,7 @@ class GenericAugmenter:
             words.insert(idx, random.choice(synonyms[1:]))
         return " ".join(words)
 
-    # Add missing methods reported in the error list
-    def augment_bible_data(self, data: Dict[str, Any], intensity: float = 0.2, max_augmentations: int = 3) -> List[Dict[str, Any]]:
-        """Augment Bible data structure with multiple variations."""
-        # This is a generic implementation to fix the error
-        if not data:
-            return [data]
-        augmented_data = [data.copy()]
-        return augmented_data
-
-    def augment_text(self, text: str, intensity: float = 0.2) -> str:
+    def augment_text(self, text: str, intensity: float = 0.2, **kwargs: Any) -> str:
         """Apply basic augmentation techniques based on intensity."""
         if not text:
             return text
@@ -178,6 +211,23 @@ class GenericAugmenter:
             augmented = self.random_insertion(augmented)
         return augmented
 
+    def augment_bible_data(
+        self, data: Dict[str, Any], intensity: float = 0.2, max_augmentations: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Augment Bible data structure with multiple variations."""
+        if not data.get("books"):
+            logger.warning("No books found in data")
+            return [data]
+        augmented_data = [data.copy()]
+        for _ in range(max_augmentations):
+            new_data = json.loads(json.dumps(data))  # Deep copy
+            for book in new_data.get("books", []):
+                for chapter in book.get("chapters", []):
+                    for verse in chapter.get("verses", []):
+                        if "text" in verse:
+                            verse["text"] = self.augment_text(verse["text"], intensity)
+            augmented_data.append(new_data)
+        return augmented_data
 
 # -------------------------------
 # Biblical Augmentation Class
@@ -186,36 +236,33 @@ class BiblicalAugmenter(GenericAugmenter):
     """Provides Bible-specific augmentation with validation and integration."""
 
     def __init__(self, config_path: Optional[str] = "config/bible_sources.json"):
-        # Fix: handle the case where config_path is None
+        config: Dict[str, Any] = {}
         if config_path is not None:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        else:
-            config = {}
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                validate(config, CONFIG_SCHEMA)
+            except Exception as e:
+                logger.error("Failed to load or validate config %s: %s", config_path, e)
+                config = {}
         super().__init__(config)
         self.prob_verse_shuffle = config.get("prob_verse_shuffle", 0.3)
         self.prob_translation_swap = config.get("prob_translation_swap", 0.4)
         self.min_context_verses = config.get("min_context_verses", 1)
         self.max_context_verses = config.get("max_context_verses", 5)
         self.bible_translations = self._load_bible_translations(config)
-        self.converter = (
-            BibleConverter(config_path=config_path) if BibleConverter else None
-        )
-        self.storage = BibleStorage(config_path=config_path) if BibleStorage else None
-        self.validator = (
-            TheologicalValidator(str(config.get("theology", {})))  # Fix: Convert dict to str
-            if TheologicalValidator
-            else None
-        )
+        self.converter = BibleConverter(config_path=config_path)
+        self.storage = BibleStorage(config_path=config_path)
+        self.validator = TheologicalValidator(str(config.get("theology", {})))
         logger.info(
             "BiblicalAugmenter initialized with %d theological terms and %d translations",
             len(self.theological_terms),
             len(self.bible_translations),
         )
 
-    def _load_bible_translations(self, config: Dict) -> Dict[str, Dict]:
+    def _load_bible_translations(self, config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Load Bible translations from config paths."""
-        translations = config.get("translation_paths", {})
+        translations: Dict[str, Dict[str, Any]] = config.get("translation_paths", {})
         for code, info in translations.items():
             path = info.get("path", "")
             if os.path.exists(path):
@@ -223,16 +270,14 @@ class BiblicalAugmenter(GenericAugmenter):
                     with open(path, "r", encoding="utf-8") as f:
                         info["data"] = json.load(f)
                 except Exception as e:
-                    logger.error(
-                        "Failed to load translation %s from %s: %s", code, path, e
-                    )
+                    logger.error("Failed to load translation %s from %s: %s", code tos, path, e)
         return translations
 
     def _apply_verse_shuffle(self, text: str) -> str:
         """Shuffle verses or sentences based on probability."""
-        verses = re.findall(r"(\d+:\d+[\-\d+]*\s+[^.!?\n]+[.!?])", text)
+        verses: List[str] = re.findall(r"(\d+:\d+[\-\d+]*\s+[^.!?\n]+[.!?])", text)
         if len(verses) <= 1:
-            sentences = sent_tokenize(text)
+            sentences: List[str] = sent_tokenize(text)
             if len(sentences) > 1 and random.random() < self.prob_verse_shuffle:
                 random.shuffle(sentences)
                 return " ".join(sentences)
@@ -255,6 +300,7 @@ class BiblicalAugmenter(GenericAugmenter):
 
         for code, info in self.bible_translations.items():
             if "data" not in info:
+                logger.warning("No data for translation %s", code)
                 continue
             for book_data in info["data"].get("books", []):
                 if book_data.get("code", "").lower() == book.lower():
@@ -263,6 +309,7 @@ class BiblicalAugmenter(GenericAugmenter):
                             for verse_data in chapter_data.get("verses", []):
                                 if int(verse_data.get("number", 0)) == start_verse:
                                     return verse_data.get("text", text)
+        logger.debug("No matching verse found for %s", ref)
         return text
 
     def expand_context(self, ref: str, text: str) -> str:
@@ -305,14 +352,12 @@ class BiblicalAugmenter(GenericAugmenter):
         if random.random() < 0.3 * intensity and ref:
             augmented = self.expand_context(ref, augmented)
         if self.validator:
-            # Fix: Convert dict to string for validator
-            score = self.validator.validate(augmented, str(ref))
-            if score < 0.5: # Corrected: Use < instead of &lt;
-                logger.warning("Theological validation failed for %s", ref)
+            score = self.validator.validate(augmented)
+            if score < 0.9:
+                logger.warning("Theological validation failed for %s (score: %.2f)", ref, score)
                 return text
         return augmented
 
-    # --- Start of Added Code ---
     def augment_bible_data(
         self,
         bible_data: Dict[str, Any],
@@ -324,51 +369,48 @@ class BiblicalAugmenter(GenericAugmenter):
             logger.warning("No books found in bible_data")
             return [bible_data]
         augmented_data = [bible_data.copy()]
-        for _ in range(max_augmentations):
-            new_data = json.loads(json.dumps(bible_data)) # Deep copy
-            overall_score = 1.0 # Initialize score
-            for book_idx, book in enumerate(new_data["books"]):
-                for chapter_idx, chapter in enumerate(book.get("chapters", [])): # Use .get for safety
-                    for verse_idx, verse in enumerate(chapter.get("verses", [])): # Use .get for safety
-                        # Ensure necessary keys exist before creating ref
-                        book_code = book.get("code", book.get("name", "UnknownBook")) # Fallback for book identifier
+        for i in range(max_augmentations):
+            new_data = json.loads(json.dumps(bible_data))  # Deep copy
+            overall_score = 1.0
+            for book in new_data.get("books", []):
+                for chapter in book.get("chapters", []):
+                    for verse in chapter.get("verses", []):
+                        book_code = book.get("code", book.get("name", "UnknownBook"))
                         chapter_num = chapter.get("number", "UnknownChapter")
                         verse_num = verse.get("number", "UnknownVerse")
                         ref = f"{book_code} {chapter_num}:{verse_num}"
-
                         original_text = verse.get("text", "")
                         if not original_text:
-                            continue # Skip if verse text is missing
-
+                            continue
                         verse["text"] = self.augment_text(original_text, ref, intensity)
-
-                        # Validate individual verse augmentation
                         if self.validator:
-                            # Assuming validator needs text and optional reference
-                            score = self.validator.validate(verse["text"], ref)
-                            if score < 0.9: # Corrected: Use < instead of &lt;
-                                # Revert if validation fails
+                            score = self.validator.validate(verse["text"])
+                            if score < 0.9:
                                 verse["text"] = original_text
-                                logger.debug(f"Reverted augmentation for {ref} due to low score ({score:.2f})")
-
-
-            # Validate the entire augmented structure after modifying all verses
+                                logger.debug(
+                                    "Reverted augmentation for %s due to low score (%.2f)",
+                                    ref,
+                                    score,
+                                )
             if self.validator:
-                # Assuming validator can handle the full data structure or needs specific format
-                # This part might need adjustment based on how validator.validate handles full data
-                # For now, let's assume it can take the dict directly or needs a representative text sample
-                # If it needs text, we might need to concatenate or sample
-                # Simplified: Assume validate can take the dict
                 try:
-                    overall_score = self.validator.validate(new_data) # Pass the whole dict
+                    representative_text = " ".join(
+                        verse.get("text", "")
+                        for book in new_data.get("books", [])
+                        for chapter in book.get("chapters", [])
+                        for verse in chapter.get("verses", [])
+                    )
+                    overall_score = self.validator.validate(representative_text)
                 except Exception as e:
-                    logger.error(f"Error during overall validation: {e}")
-                    overall_score = 0.0 # Treat validation error as failure
-
-                if overall_score < 0.9: # Corrected: Use < instead of &lt;
-                    logger.warning(f"Skipping augmented version due to low overall score ({overall_score:.2f})")
-                    continue # Skip this augmentation if overall validation fails
-
+                    logger.error("Error during overall validation: %s", e)
+                    overall_score = 0.0
+                if overall_score < 0.9:
+                    logger.warning(
+                        "Skipping augmented version %d due to low overall score (%.2f)",
+                        i + 1,
+                        overall_score,
+                    )
+                    continue
             augmented_data.append(new_data)
             logger.info(
                 "Generated augmented version %d with score %.2f",
@@ -378,209 +420,47 @@ class BiblicalAugmenter(GenericAugmenter):
         return augmented_data
 
     def augment_batch(
-        self, texts: List[str], refs: Optional[List[str]] = None, intensity: float = 0.2
+        self,
+        texts: List[str],
+        refs: Optional[List[str]] = None,
+        intensity: float = 0.2,
     ) -> List[str]:
         """Augment a batch of texts in parallel."""
         if not texts:
             return []
-        # Ensure refs list matches texts length if provided
         if refs and len(refs) != len(texts):
             logger.warning("Length of refs does not match length of texts. Ignoring refs.")
             refs = None
-
-        with ThreadPoolExecutor(max_workers=min(os.cpu_count() or 1, len(texts))) as executor: # Use cpu_count
+        with ThreadPoolExecutor(max_workers=min(os.cpu_count() or 1, len(texts))) as executor:
             future_to_text = {
                 executor.submit(
                     self.augment_text,
                     text,
-                    refs[i] if refs else None, # Pass ref correctly
+                    refs[i] if refs else None,
                     intensity,
-                ): (text, refs[i] if refs else None) # Store original text and ref for error logging
+                ): (text, refs[i] if refs else None)
                 for i, text in enumerate(texts)
             }
             results = []
-            original_texts_for_failed = [] # Keep track of original texts for failed augmentations
-
             for future in future_to_text:
                 original_text, original_ref = future_to_text[future]
                 try:
                     augmented_text = future.result()
                     results.append(augmented_text)
                 except Exception as e:
-                    logger.error(f"Failed to augment text (ref: {original_ref}): {e}. Using original text.")
-                    results.append(original_text) # Append original text on failure
-                    original_texts_for_failed.append(original_text)
-
-        # Log summary of failures if any
-        if original_texts_for_failed:
-            logger.warning(f"{len(original_texts_for_failed)} augmentations failed and used original text.")
-
+                    logger.error("Failed to augment text (ref: %s): %s", original_ref, e)
+                    results.append(original_text)
         return results
-
 
     def save_augmentations(
         self, augmented_data: List[Dict[str, Any]], base_path: str
     ) -> List[str]:
         """Save augmented data using storage or filesystem."""
         paths = []
-        # Ensure base_path is a directory
-        output_dir = os.path.dirname(base_path) if '.' in os.path.basename(base_path) else base_path
-        os.makedirs(output_dir, exist_ok=True) # Create directory if it doesn't exist
-
-        if not self.storage:
-            logger.warning("Storage module unavailable; saving to filesystem")
-            for i, data in enumerate(augmented_data):
-                # Generate filename based on index
-                file_path = os.path.join(output_dir, f"augmented_bible_{i}.json")
-                try:
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2, ensure_ascii=False) # Use ensure_ascii=False for broader char support
-                    paths.append(file_path)
-                    logger.debug(f"Saved augmented data to {file_path}")
-                except TypeError as e:
-                     logger.error(f"Serialization error saving {file_path}: {e}. Data type: {type(data)}")
-                except IOError as e:
-                    logger.error(f"IOError saving {file_path}: {e}")
-                except Exception as e:
-                    logger.error(f"Unexpected error saving {file_path}: {e}")
-        else:
-            logger.info("Using BibleStorage to save augmentations.")
-            for i, data in enumerate(augmented_data):
-                try:
-                    # Prepare metadata
-                    metadata = {
-                        "augmentation_index": i,
-                        "timestamp": datetime.now().isoformat(), # Use ISO format
-                        "source": "augmentation_script",
-                        # Add other relevant metadata if available, e.g., original file ID
-                    }
-                    # Store using BibleStorage - assumes store_bible takes data (str or dict) and metadata
-                    # Convert data to JSON string if necessary
-                    data_str = json.dumps(data, ensure_ascii=False)
-                    file_id = self.storage.store_bible(data_str, metadata=metadata) # Pass metadata correctly
-                    if file_id:
-                        # Construct the path where the storage module likely saved the file
-                        # This might need adjustment based on BibleStorage implementation
-                        saved_path = os.path.join(self.storage.storage_dir, f"{file_id}.json")
-                        paths.append(saved_path)
-                        logger.debug(f"Stored augmented data via BibleStorage with ID: {file_id}")
-                    else:
-                        logger.error(f"BibleStorage failed to store augmented data index {i}")
-                except AttributeError:
-                     logger.error("BibleStorage object does not have a 'store_bible' method or is None.")
-                     # Fallback to filesystem saving if storage fails structurally
-                     file_path = os.path.join(output_dir, f"augmented_bible_{i}_fallback.json")
-                     try:
-                         with open(file_path, "w", encoding="utf-8") as f:
-                             json.dump(data, f, indent=2, ensure_ascii=False)
-                         paths.append(file_path)
-                         logger.warning(f"Fell back to saving {file_path} directly.")
-                     except Exception as fallback_e:
-                         logger.error(f"Fallback saving also failed for index {i}: {fallback_e}")
-                except Exception as e:
-                    logger.error(f"Error storing augmented data index {i} via BibleStorage: {e}")
-
-        if not paths:
-            logger.error("No augmented data was successfully saved.")
-        else:
-            logger.info(f"Successfully saved {len(paths)} augmented data files.")
-        return paths
-
-    # --- End of Added Code ---
-
-
-# -------------------------------
-# CLI Execution
-# -------------------------------
-# --- Replacing previous __main__ block ---
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Ultimate Augmentation for Bible-AI")
-    parser.add_argument(
-        "--input", type=str, required=True, help="Input file (JSON Bible data format)" # Clarified input type
-    )
-    parser.add_argument("--output", type=str, required=True, help="Output directory to save augmented files") # Clarified output is directory
-    parser.add_argument(
-        "--intensity", type=float, default=0.2, help="Augmentation intensity (0.0 to 1.0)" # Added range hint
-    )
-    parser.add_argument(
-        "--max-augmentations", type=int, default=3, help="Number of augmented versions to generate" # Clarified meaning
-    )
-    # Removed mode argument as the script now focuses on BiblicalAugmenter
-    # parser.add_argument(
-    #     "--mode", type=str, choices=["generic", "biblical"], default="biblical"
-    # )
-    parser.add_argument("--config", type=str, default="config/bible_sources.json", help="Path to configuration file") # Kept config path
-    parser.add_argument("--verbose", action="store_true", help="Enable debug logging") # Added verbose flag
-
-    args = parser.parse_args()
-
-    # Setup logger level based on verbose flag
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
-
-    # Always use BiblicalAugmenter now
-    try:
-        augmenter = BiblicalAugmenter(args.config)
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found at {args.config}. Exiting.")
-        exit(1)
-    except json.JSONDecodeError:
-         logger.error(f"Error decoding JSON configuration file {args.config}. Exiting.")
-         exit(1)
-    except Exception as e:
-        logger.error(f"Failed to initialize BiblicalAugmenter: {e}")
-        exit(1)
-
-
-    # Input must be JSON for augment_bible_data
-    if not args.input.endswith(".json"):
-         logger.error(f"Input file must be a JSON file for Bible data augmentation. Provided: {args.input}")
-         exit(1)
-
-    try:
-        with open(args.input, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        logger.info(f"Loaded Bible data from {args.input}")
-    except FileNotFoundError:
-        logger.error(f"Input file not found: {args.input}")
-        exit(1)
-    except json.JSONDecodeError:
-        logger.error(f"Error decoding JSON input file: {args.input}")
-        exit(1)
-    except Exception as e:
-        logger.error(f"Error reading input file {args.input}: {e}")
-        exit(1)
-
-    # Perform augmentation
-    logger.info(f"Starting augmentation with intensity {args.intensity}, generating {args.max_augmentations} versions...")
-    try:
-        augmented_data_list = augmenter.augment_bible_data(
-            data, args.intensity, args.max_augmentations
+        output_dir = (
+            os.path.dirname(base_path) if "." in os.path.basename(base_path)
+            else base_path
         )
-        logger.info(f"Generated {len(augmented_data_list)} total versions (including original).")
-    except Exception as e:
-        logger.error(f"An error occurred during augmentation: {e}")
-        augmented_data_list = [] # Ensure list exists even on error
-
-    # Save the results
-    if augmented_data_list:
-        logger.info(f"Saving augmented data to directory: {args.output}")
-        try:
-            file_paths = augmenter.save_augmentations(augmented_data_list, args.output)
-            if file_paths:
-                print(f"Augmented files saved successfully. Paths: {file_paths}")
-            else:
-                 print("Augmentation completed, but failed to save any files.")
-        except Exception as e:
-            logger.error(f"An error occurred during saving: {e}")
-            print("Augmentation completed, but an error occurred during saving.")
-    else:
-        print("Augmentation process did not produce any results.")
-
-    logger.info("Augmentation script finished.")
-# --- End of Replaced __main__ block ---
-
+        os.makedirs(output_dir, exist_ok=True)
+        for i, data in enumerate(augmented_data):
+            file_path = os.path.join(output_dir, f"augmented_bible_{i}.json
