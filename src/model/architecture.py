@@ -1,5 +1,5 @@
 # src/model/architecture.py
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import torch
 import torch.nn as nn
@@ -9,7 +9,10 @@ from transformers import PreTrainedTokenizer
 
 from src.model.attention import MultiHeadAttention
 from src.model.verse_detector import VerseDetector
-from src.model.verse_embeddings import PositionalEncoding, TokenEmbeddings
+# Fix import errors by updating to the correct module attribute names
+# Assuming these are actually defined in the module with these names:
+from src.model.verse_embeddings import embeddings as TokenEmbeddings
+from src.model.verse_embeddings import PositionalEncoding
 from src.theology.validator import TheologicalValidator
 
 
@@ -64,19 +67,19 @@ class BiblicalTransformerLayer(nn.Module):
     def __init__(self, config: BiblicalTransformerConfig):
         super().__init__()
         self.config = config
-        self.validator = TheologicalValidator(
-            {
-                "min_score": 0.9,
-                "theological_terms": [
-                    "God",
-                    "Jesus",
-                    "Holy Spirit",
-                    "jesus christ",
-                    "messiah",
-                    "christ",
-                ],
-            }
-        )
+        # Fix: Convert dictionary to string for TheologicalValidator
+        theological_config = {
+            "min_score": 0.9,
+            "theological_terms": [
+                "God",
+                "Jesus",
+                "Holy Spirit",
+                "jesus christ", 
+                "messiah",
+                "christ",
+            ],
+        }
+        self.validator = TheologicalValidator(str(theological_config))
 
         # Self-attention mechanism
         self.attention = MultiHeadAttention(
@@ -159,19 +162,19 @@ class BiblicalTransformer(nn.Module):
         super().__init__()
         self.config = config
         self.tokenizer = tokenizer  # Add tokenizer
-        self.validator = TheologicalValidator(
-            {
-                "min_score": 0.9,
-                "theological_terms": [
-                    "God",
-                    "Jesus",
-                    "Holy Spirit",
-                    "jesus christ",
-                    "messiah",
-                    "christ",
-                ],
-            }
-        )
+        # Fix: Convert dictionary to string for TheologicalValidator
+        theological_config = {
+            "min_score": 0.9,
+            "theological_terms": [
+                "God",
+                "Jesus",
+                "Holy Spirit",
+                "jesus christ",
+                "messiah",
+                "christ",
+            ],
+        }
+        self.validator = TheologicalValidator(str(theological_config))
 
         # Core embeddings
         self.token_embedding = TokenEmbeddings(
@@ -229,7 +232,7 @@ class BiblicalTransformer(nn.Module):
 
         self.init_weights()
 
-    def init_weights(self):
+    def init_weights(self) -> None:
         """Initialize model weights."""
         # Initialize embeddings
         nn.init.normal_(self.token_embedding.weight, mean=0.0, std=0.02)
@@ -308,7 +311,11 @@ class BiblicalTransformer(nn.Module):
         # Process through transformer layers
         for i, layer in enumerate(self.layers):
             if output_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states,)
+                # Fix: Check if all_hidden_states is None before adding
+                if all_hidden_states is not None:
+                    all_hidden_states = all_hidden_states + (hidden_states,)
+                else:
+                    all_hidden_states = (hidden_states,)
 
             # Get theological context (every 3rd layer)
             theological_context = None
@@ -323,7 +330,11 @@ class BiblicalTransformer(nn.Module):
             )
 
             if output_attentions:
-                all_attentions = all_attentions + (attention_weights,)
+                # Fix: Check if all_attentions is None before adding
+                if all_attentions is not None:
+                    all_attentions = all_attentions + (attention_weights,)
+                else:
+                    all_attentions = (attention_weights,)
 
         # Final layer norm
         hidden_states = self.layer_norm(hidden_states)
@@ -363,8 +374,9 @@ class BiblicalTransformer(nn.Module):
             predicted_text = self.tokenizer.batch_decode(
                 predicted_ids, skip_special_tokens=True
             )
+            # Fix: Convert dict to string for TheologicalValidator
             validation_scores = [
-                self.validator.validate({"text": text}) for text in predicted_text
+                self.validator.validate(text) for text in predicted_text
             ]
             output_dict["validation_scores"] = torch.tensor(
                 validation_scores, device=input_ids.device

@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
+from torch import Tensor
 
 
 class MultiHeadAttention(nn.Module):
@@ -62,13 +63,13 @@ class MultiHeadAttention(nn.Module):
 
     def forward(
         self,
-        query_states: torch.Tensor,
-        key_states: torch.Tensor,
-        value_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
+        query_states: Tensor,
+        key_states: Tensor,
+        value_states: Tensor,
+        attention_mask: Optional[Tensor] = None,
         output_attentions: bool = False,
-        verse_positions: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        verse_positions: Optional[Tensor] = None,
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Forward pass for multi-head attention.
 
@@ -83,74 +84,72 @@ class MultiHeadAttention(nn.Module):
         Returns:
             context_layer: Tensor of shape [batch_size, seq_length, hidden_size]
             attention_probs: Optional tensor of attention probabilities
-            Forward pass for multi-head attention with gradient checkpointing.
         """
-
         # Define a helper function for checkpointing
+        def attention_fn(q, k, v, mask, verse_pos):
+            mixed_query_layer = self.query(q)
+            mixed_key_layer = self.key(k)
+            mixed_value_layer = self.value(v)
 
-    def attention_fn(q, k, v, mask, verse_pos):
-        mixed_query_layer = self.query(q)
-        mixed_key_layer = self.key(k)
-        mixed_value_layer = self.value(v)
+            # Reshape for multi-head attention
+            query_layer = self.transpose_for_scores(mixed_query_layer)
+            key_layer = self.transpose_for_scores(mixed_key_layer)
+            value_layer = self.transpose_for_scores(mixed_value_layer)
 
-        # Reshape for multi-head attention
-        query_layer = self.transpose_for_scores(mixed_query_layer)
-        key_layer = self.transpose_for_scores(mixed_key_layer)
-        value_layer = self.transpose_for_scores(mixed_value_layer)
+            # Calculate dot-product attention scores
+            attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
-        # Calculate dot-product attention scores
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+            # Scale attention scores
+            attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
-        # Scale attention scores
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+            # Add theological bias to attention (for theological concepts)
+            if verse_pos is not None:
+                verse_attention_bias = verse_pos.unsqueeze(1).expand(
+                    -1, self.num_attention_heads, -1, -1
+                )
+                attention_scores = (
+                    attention_scores
+                    + verse_attention_bias * self.theological_bias.unsqueeze(0)
+                )
 
-        # Add theological bias to attention (for theological concepts)
-        if verse_pos is not None:
-            verse_attention_bias = verse_pos.unsqueeze(1).expand(
-                -1, self.num_attention_heads, -1, -1
+            # Apply attention mask if provided
+            if mask is not None:
+                # Add -10000 to masked positions to make their softmax value effectively zero
+                attention_scores = attention_scores + mask
+
+            # Apply softmax to get attention probabilities
+            attention_probs = F.softmax(attention_scores, dim=-1)
+
+            # Apply dropout to attention probabilities
+            attention_probs = self.dropout(attention_probs)
+
+            # Apply attention weights to value layer
+            context_layer = torch.matmul(attention_probs, value_layer)
+            
+            # Reshape output properly
+            context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+            context_layer = context_layer.view(
+                context_layer.size(0), context_layer.size(1), self.hidden_size
             )
-            attention_scores = (
-                attention_scores
-                + verse_attention_bias * self.theological_bias.unsqueeze(0)
-            )
-
-        # Apply attention mask if provided
-        if mask is not None:
-            # Add -10000 to masked positions to make their softmax value effectively zero
-            attention_scores = attention_scores + mask
-
-        # Apply softmax to get attention probabilities
-        attention_probs = F.softmax(attention_scores, dim=-1)
-
-        # Apply dropout to attention probabilities
-        attention_probs = self.dropout(attention_probs)
-
-        # Apply attention weights to value layer
-        context_layer = torch.matmul(attention_probs, value_layer)
-        return context_layer, attention_probs if output_attentions else None
+            
+            return context_layer, attention_probs if output_attentions else None
 
         # Use checkpointing for the attention computation
+        context_layer, attention_probs = checkpoint(
+            attention_fn,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            verse_positions,
+            use_reentrant=False,
+        )
+        
+        # Project and apply dropout
+        output_layer = self.output(context_layer)
+        output_layer = self.output_dropout(output_layer)
 
-    context_layer, attention_probs = checkpoint(
-        attention_fn,
-        query_states,
-        key_states,
-        value_states,
-        attention_mask,
-        verse_positions,
-        use_reentrant=False,
-    )
-    # Reshape and project
-    context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-    context_layer = context_layer.view(
-        context_layer.size(0), context_layer.size(1), self.hidden_size
-    )
-    output_layer = self.output(context_layer)
-    output_layer = self.output_dropout(output_layer)
-
-    if output_attentions:
         return output_layer, attention_probs
-    return output_layer, None
 
 
 class BiblicalSelfAttention(MultiHeadAttention):
@@ -174,11 +173,11 @@ class BiblicalSelfAttention(MultiHeadAttention):
 
     def forward(
         self,
-        hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        verse_positions: Optional[torch.Tensor] = None,
+        hidden_states: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        verse_positions: Optional[Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Forward pass that specially handles Bible verse references.
 

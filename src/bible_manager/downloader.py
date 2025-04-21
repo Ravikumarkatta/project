@@ -53,7 +53,7 @@ class BibleDownloader:
         """Load Bible sources from config file."""
         try:
             with self.config_path.open("r", encoding="utf-8") as f:
-                sources = json.load(f)
+                sources: Dict[str, Any] = json.load(f)
             logger.info(f"Loaded {len(sources.get('sources', sources))} Bible sources")
             return sources.get("sources", sources)
         except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -75,7 +75,7 @@ class BibleDownloader:
 
     def _parse_custom_text(self, file_path: Path) -> Dict[str, Any]:
         """Parse a custom text file with verse numbers (e.g., '1:1 In the beginning...')."""
-        bible_data = {}
+        bible_data: Dict[str, Any] = {}
         current_book = None
         current_chapter = None
 
@@ -117,7 +117,7 @@ class BibleDownloader:
 
     def _parse_json_structured(self, file_path: Path) -> Dict[str, Any]:
         """Parse a structured JSON file with books, chapters, and verses."""
-        bible_data = {}
+        bible_data: Dict[str, Any] = {}
         try:
             logger.debug(f"Opening JSON file: {file_path}")
             with file_path.open("r", encoding="utf-8") as f:
@@ -164,7 +164,7 @@ class BibleDownloader:
 
     def _parse_gutenberg_text(self, file_path: Path) -> Dict[str, Any]:
         """Parse a Project Gutenberg Bible text file."""
-        bible_data = {}
+        bible_data: Dict[str, Any] = {}
         current_book = None
         current_chapter = None
         verse_num = 1
@@ -209,7 +209,7 @@ class BibleDownloader:
 
     def _parse_usfx_xml(self, file_path: Path) -> Dict[str, Any]:
         """Parse USFX XML into downloader format."""
-        bible_data = {}
+        bible_data: Dict[str, Any] = {}
         current_book = None
         current_chapter = None
         try:
@@ -392,7 +392,7 @@ class BibleDownloader:
                 content_file = (
                     target_dir / "WEBUSFX.xml"
                     if version_id == "web"
-                    else next(iter(target_dir.glob("*.xml")), None)
+                    else next(iter(target_dir.glob("*.xml")), Path(""))
                 )
                 if not content_file or not content_file.exists():
                     raise ValueError("No valid USFX content file found in ZIP")

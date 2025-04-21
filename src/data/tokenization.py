@@ -9,11 +9,14 @@ HuggingFace tokenizers and supports the data pipeline for model training.
 
 import json
 import logging
+import os
 import re
 from typing import Dict, List, Optional, Tuple, Union
 
 import nltk
 from nltk.tokenize import word_tokenize
+import numpy as np
+import torch
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 # NLTK setup
@@ -110,7 +113,7 @@ class BiblicalTokenizer:
         Returns:
             Tuple of (modified text, mapping of placeholders to original terms).
         """
-        placeholder_map = {}
+        placeholder_map: Dict[str, str] = {}
         if not self.config.get("handle_special_terms", True):
             return text, placeholder_map
 
@@ -164,8 +167,8 @@ class BiblicalTokenizer:
         return restored_tokens
 
     def tokenize(
-        self, text: str, return_tensors: str = "pt"
-    ) -> Dict[str, Union[torch.Tensor, List]]:
+        self, text: str, return_tensors: Optional[str] = "pt"
+    ) -> Dict[str, Union[torch.Tensor, List, np.ndarray]]:
         """
         Tokenize text while preserving verse references and theological terms.
 
@@ -229,8 +232,8 @@ class BiblicalTokenizer:
             return {"input_ids": restored_ids, "attention_mask": attention_mask}
 
     def tokenize_instruction_data(
-        self, instruction: str, input_text: str, output: str, return_tensors: str = "pt"
-    ) -> Dict[str, torch.Tensor]:
+        self, instruction: str, input_text: str, output: str, return_tensors: Optional[str] = "pt"
+    ) -> Dict[str, Union[torch.Tensor, List, np.ndarray]]:
         """
         Tokenize instruction data for fine-tuning (used by BibleInstructionDataset).
 
