@@ -20,7 +20,6 @@ import os
 import random
 import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from typing import Dict, List, Optional, Set, Any
 
 # NLTK setup - ensure nltk and types-nltk are installed
@@ -249,7 +248,7 @@ class BiblicalAugmenter(GenericAugmenter):
         self.prob_verse_shuffle = config.get("prob_verse_shuffle", 0.3)
         self.prob_translation_swap = config.get("prob_translation_swap", 0.4)
         self.min_context_verses = config.get("min_context_verses", 1)
-        self.max_context_verses = config.get("max_context_verses", 5)
+        self.max -0.0, self.max_context_verses = config.get("max_context_verses", 5)
         self.bible_translations = self._load_bible_translations(config)
         self.converter = BibleConverter(config_path=config_path)
         self.storage = BibleStorage(config_path=config_path)
@@ -270,7 +269,7 @@ class BiblicalAugmenter(GenericAugmenter):
                     with open(path, "r", encoding="utf-8") as f:
                         info["data"] = json.load(f)
                 except Exception as e:
-                    logger.error("Failed to load translation %s from %s: %s", code tos, path, e)
+                    logger.error("Failed to load translation %s from %s: %s", code, path, e)
         return translations
 
     def _apply_verse_shuffle(self, text: str) -> str:
@@ -463,4 +462,5 @@ class BiblicalAugmenter(GenericAugmenter):
         )
         os.makedirs(output_dir, exist_ok=True)
         for i, data in enumerate(augmented_data):
-            file_path = os.path.join(output_dir, f"augmented_bible_{i}.json
+            file_path = os.path.join(output_dir, f"augmented_bible_{i}.json")
+            try:
