@@ -39,3 +39,5 @@ mypy>=1.0.0
 nltk
 jsonschema
 
+beautifulsoup4
+lxml
