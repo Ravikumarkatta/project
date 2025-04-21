@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import requests
-from tqdm import tqdm
+import requests  # type: ignore  # Using type: ignore until types-requests is installed
+from tqdm import tqdm  # type: ignore  # Using type: ignore until types-tqdm is installed
 
 try:
     from src.utils.logger import get_logger
@@ -58,7 +58,8 @@ class BibleDownloader:
             return sources.get("sources", sources)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load sources from {self.config_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
 
     def list_available_versions(self) -> List[str]:
         """List all available Bible versions."""
@@ -113,7 +114,8 @@ class BibleDownloader:
             return bible_data
         except Exception as e:
             logger.error(f"Failed to parse custom text file {file_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
 
     def _parse_json_structured(self, file_path: Path) -> Dict[str, Any]:
         """Parse a structured JSON file with books, chapters, and verses."""
@@ -157,10 +159,12 @@ class BibleDownloader:
             return bible_data
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding failed for {file_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
         except Exception as e:
             logger.error(f"Failed to parse JSON structured file {file_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
 
     def _parse_gutenberg_text(self, file_path: Path) -> Dict[str, Any]:
         """Parse a Project Gutenberg Bible text file."""
@@ -205,7 +209,8 @@ class BibleDownloader:
             return bible_data
         except Exception as e:
             logger.error(f"Failed to parse Gutenberg file {file_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
 
     def _parse_usfx_xml(self, file_path: Path) -> Dict[str, Any]:
         """Parse USFX XML into downloader format."""
@@ -229,7 +234,8 @@ class BibleDownloader:
             return bible_data
         except Exception as e:
             logger.error(f"Failed to parse USFX XML {file_path}: {str(e)}")
-            return {}
+            empty_dict: Dict[str, Any] = {}
+            return empty_dict
 
     def process_local_file(
         self, version_id: str, local_file_path: str, force: bool = False
