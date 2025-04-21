@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypeVar, cast
 
 import jwt
 import torch
@@ -19,9 +19,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, Field
+from transformers import PreTrainedTokenizer
 
 # Fixed import statements
 from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfig
+
+# Import with fallback implementation
 try:
     from src.monitoring.Metrics import MetricsCollector
 except ImportError:
@@ -47,8 +50,11 @@ except ImportError:
             pass
 
 from src.serve.cache import Cache
+
+# Import with fallback implementation - avoid name collision
 try:
-    from src.serve.rate_limiter import RateLimiter
+    from src.serve.rate_limiter import RateLimiter as ImportedRateLimiter
+    RateLimiter = ImportedRateLimiter
 except ImportError:
     # Fallback implementation if module is missing
     class RateLimiter:
@@ -57,7 +63,7 @@ except ImportError:
             self.burst_limit = burst_limit
         
         async def limit(self, request: Request) -> str:
-            # Extract client IP from request
+            # Extract client IP from request and return as string
             client_ip = request.client.host if request.client else "unknown"
             return client_ip
 
@@ -88,6 +94,18 @@ def load_config(config_path: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to load config {config_path}: {e}")
         raise
+
+
+# Helper function to load tokenizer
+def load_tokenizer() -> Optional[PreTrainedTokenizer]:
+    """Load tokenizer from file or return None if unavailable."""
+    try:
+        # Implement actual tokenizer loading logic here
+        # For now, return None as placeholder
+        return None
+    except Exception as e:
+        logger.error(f"Failed to load tokenizer: {e}")
+        return None
 
 
 security_config = load_config("config/security_config.json")
@@ -123,11 +141,14 @@ handler = ControversialHandler()
 sensitivity = PastoralSensitivity()
 verse_resolver = VerseResolver()
 
+# Define global model variable
+model: Optional[BiblicalTransformer] = None
+
 # Load model
 try:
     model_config = BiblicalTransformerConfig(**load_config("config/model_config.json"))
-    # Added tokenizer parameter
-    model = BiblicalTransformer(model_config, tokenizer=None)  # Replace None with actual tokenizer if available
+    tokenizer = load_tokenizer()  # May be None, but BiblicalTransformer should handle this
+    model = BiblicalTransformer(model_config, tokenizer=tokenizer)
     model_path = Path("data/snapshots/best_model.pt")
     if model_path.exists():
         model.load_state_dict(torch.load(model_path))
@@ -201,7 +222,7 @@ async def login(user: UserLogin) -> Token:
         algorithm="HS256",
     )
     logger.info(f"User {user.username} authenticated successfully")
-    return {"access_token": access_token, "token_type": "bearer"}
+    return Token(access_token=access_token, token_type="bearer")
 
 
 # Health check endpoint
@@ -222,7 +243,7 @@ async def health_check() -> Dict[str, str]:
 
 
 # Verse resolution endpoint
-@app.get("/verse", response_model=Dict[str, str])
+@app.get("/verse")
 async def get_verse(
     request: Request,
     verse_request: VerseRequest,
@@ -234,14 +255,14 @@ async def get_verse(
     cached_response = cache.get(cache_key)
     if cached_response:
         logger.debug(f"Cache hit for {cache_key}")
-        return cached_response
+        return cast(Dict[str, str], cached_response)
 
     start_time = datetime.now()
     try:
         verse_text = verse_resolver.resolve(verse_request.reference, verse_request.translation)
         if not verse_text:
             raise HTTPException(status_code=404, detail="Verse not found")
-        response = {"verse": verse_text}
+        response: Dict[str, str] = {"verse": verse_text}
         cache.set(cache_key, response)
         latency = (datetime.now() - start_time).total_seconds()
         metrics_collector.track_inference(latency)
@@ -253,7 +274,7 @@ async def get_verse(
 
 
 # Text generation endpoint
-@app.post("/generate", response_model=Dict[str, Any])
+@app.post("/generate")
 async def generate_text(
     request: Request,
     text_request: TextRequest,
@@ -265,14 +286,18 @@ async def generate_text(
     cached_response = cache.get(cache_key)
     if cached_response:
         logger.debug(f"Cache hit for {cache_key}")
-        return cached_response
+        return cast(Dict[str, Any], cached_response)
 
     if model is None:
         raise HTTPException(status_code=503, detail="Model not available")
 
     start_time = datetime.now()
     try:
-        # Tokenize input (assumes tokenizer in model)
+        # Ensure model has tokenizer
+        if not hasattr(model, 'tokenizer') or model.tokenizer is None:
+            raise ValueError("Model tokenizer not available")
+            
+        # Tokenize input
         input_ids = model.tokenizer.tokenize(text_request.text)
         with torch.no_grad():
             outputs = model(input_ids=input_ids)
@@ -280,7 +305,7 @@ async def generate_text(
                 outputs["logits"].argmax(dim=-1)
             )
 
-        # Theological validation - fixed parameter type
+        # Theological validation
         scores = validator.validate(predicted_text)
         validation_score = scores.get("overall", 0.0)  # Use get with default value
         
@@ -297,7 +322,7 @@ async def generate_text(
         adjusted = adjuster.adjust_for_denomination(predicted_text, denomination)
         text = adjusted.get("adjusted_text", predicted_text)
 
-        # Handle controversial topics - fix method name if needed
+        # Handle controversial topics
         if hasattr(handler, "handle_controversy"):
             controversy = handler.handle_controversy(text)
         else:
@@ -375,4 +400,4 @@ if __name__ == "__main__":
     )
     uvicorn.run(
         "api:app", host="0.0.0.0", port=8000, reload=True, log_level="info", **ssl_args
-    )
+                )
