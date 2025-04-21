@@ -1,79 +1,75 @@
-"""Dataset classes for biblical text data processing."""
-
+# src/data/dataset.py
 import json
-import logging
-from typing import Dict, List, Optional
+import os
+import random
+from typing import Dict, List, Tuple, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset
-
-from .tokenization import BiblicalTokenizer
-
-logger = logging.getLogger(__name__)
+from transformers import PreTrainedTokenizer
 
 
 class BibleDataset(Dataset):
-    """Dataset for training on biblical content."""
+    """Dataset for Bible verses."""
 
     def __init__(
         self,
-        data_file: str,
-        tokenizer: BiblicalTokenizer,
+        bible_path: str,
+        tokenizer: PreTrainedTokenizer,
         max_length: int = 512,
         sample_ratio: float = 1.0,
     ):
         """
-        Initialize the dataset.
+        Initialize dataset from Bible data.
 
         Args:
-            data_file: Path to JSON file containing Bible data
-            tokenizer: BiblicalTokenizer instance
-            max_length: Maximum sequence length
-            sample_ratio: Ratio of data to use (for debugging/testing)
+            bible_path: Path to Bible JSON file.
+            tokenizer: HuggingFace tokenizer to use.
+            max_length: Maximum sequence length.
+            sample_ratio: Ratio of verses to sample (0.0-1.0).
         """
+        self.data = self._load_and_process_data(bible_path, sample_ratio)
         self.tokenizer = tokenizer
         self.max_length = max_length
 
-        # Load Bible data
-        with open(data_file, "r", encoding="utf-8") as f:
-            self.bible_data = json.load(f)
+    def _load_and_process_data(self, bible_path: str, sample_ratio: float) -> List[str]:
+        """Load Bible data from JSON file and convert to flat list of verses."""
+        with open(bible_path, "r", encoding="utf-8") as f:
+            bible_data = json.load(f)
 
-        # Convert hierarchical Bible data into flat list of verses
-        self.verses = []
-        for book, chapters in self.bible_data.items():
-            for chapter, verses in chapters.items():
-                for verse_num, text in verses.items():
-                    self.verses.append(
-                        {"reference": f"{book} {chapter}:{verse_num}", "text": text}
-                    )
+        verses = []
+        for book, chapters in bible_data.items():
+            for chapter, verse_dict in chapters.items():
+                for verse_num, verse_text in verse_dict.items():
+                    formatted_verse = f"{book} {chapter}:{verse_num} - {verse_text}"
+                    verses.append(formatted_verse)
 
-        # Sample data if needed
+        # Sample if needed
         if sample_ratio < 1.0:
-            num_samples = int(len(self.verses) * sample_ratio)
-            self.verses = self.verses[:num_samples]
+            random.shuffle(verses)
+            verses = verses[:int(len(verses) * sample_ratio)]
 
-        logger.info(f"Loaded {len(self.verses)} verses from {data_file}")
+        return verses
 
     def __len__(self) -> int:
-        return len(self.verses)
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        """Get tokenized verse data."""
-        verse = self.verses[idx]
-
-        # Combine reference and text
-        full_text = f"{verse['reference']} {verse['text']}"
+        """Get tokenized verse."""
+        verse = self.data[idx]
 
         # Tokenize
-        encoding = self.tokenizer.tokenize(
-            full_text, return_tensors=None  # We'll convert to tensors here
+        tokenized = self.tokenizer(
+            verse,
+            max_length=self.max_length,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt",
         )
 
         return {
-            "input_ids": torch.tensor(encoding["input_ids"], dtype=torch.long),
-            "attention_mask": torch.tensor(
-                encoding["attention_mask"], dtype=torch.long
-            ),
+            "input_ids": tokenized["input_ids"].squeeze(),
+            "attention_mask": tokenized["attention_mask"].squeeze(),
         }
 
 
@@ -81,156 +77,192 @@ class BibleInstructionDataset(Dataset):
     """Dataset for instruction fine-tuning with biblical data."""
 
     def __init__(
-        self,
-        data_file: str,
-        tokenizer: BiblicalTokenizer,
+        self, 
+        data_path: str, 
+        tokenizer: PreTrainedTokenizer, 
         max_length: int = 512,
-        instruction_types: Optional[List[str]] = None,
+        instruction_types: Optional[List[str]] = None
     ):
         """
-        Initialize the instruction dataset.
+        Initialize dataset from instruction data.
 
         Args:
-            data_file: Path to JSON file containing instruction data
-            tokenizer: BiblicalTokenizer instance
-            max_length: Maximum sequence length
-            instruction_types: List of instruction types to include
+            data_path: Path to instruction JSON file.
+            tokenizer: HuggingFace tokenizer to use.
+            max_length: Maximum sequence length.
+            instruction_types: If provided, filter by these instruction types.
         """
+        self.data = self._load_and_filter_data(data_path, instruction_types)
         self.tokenizer = tokenizer
         self.max_length = max_length
 
-        # Load instruction data
-        with open(data_file, "r", encoding="utf-8") as f:
-            self.instruction_data = json.load(f)
-
-        # Filter by instruction types if specified
+    def _load_and_filter_data(
+        self, data_path: str, instruction_types: Optional[List[str]]
+    ) -> List[Dict]:
+        """Load instruction data from JSON file and filter if needed."""
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
         if instruction_types:
-            self.instruction_data = [
-                item
-                for item in self.instruction_data
-                if item["instruction_type"] in instruction_types
-            ]
-
-        logger.info(f"Loaded {len(self.instruction_data)} instruction examples")
+            return [item for item in data if item.get("instruction_type") in instruction_types]
+        return data
 
     def __len__(self) -> int:
-        return len(self.instruction_data)
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        """Get tokenized instruction data."""
-        item = self.instruction_data[idx]
+        """Get tokenized instruction example."""
+        item = self.data[idx]
 
-        # Tokenize instruction, input, and output
-        encoding = self.tokenizer.tokenize_instruction_data(
-            instruction=item["instruction"],
-            input_text=item["input"],
-            output=item["output"],
-            return_tensors=None,
+        # Format as instruction prompt
+        instruction = item["instruction"]
+        input_text = item["input"]
+        output = item["output"]
+
+        # Format prompt according to instruction tuning format
+        prompt = f"Instruction: {instruction}\n\nInput: {input_text}\n\nOutput: "
+
+        # Tokenize prompt
+        prompt_tokenized = self.tokenizer(
+            prompt,
+            max_length=self.max_length // 2,  # Reserve half length for output
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt",
         )
 
+        # Tokenize output (labels)
+        output_tokenized = self.tokenizer(
+            output,
+            max_length=self.max_length // 2,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt",
+        )
+
+        # Combine input_ids: prompt followed by output
+        input_ids = torch.cat(
+            [
+                prompt_tokenized["input_ids"].squeeze(),
+                output_tokenized["input_ids"].squeeze(),
+            ]
+        )[: self.max_length]
+
+        # Create attention mask (1 for prompt and output tokens, 0 for padding)
+        attention_mask = torch.cat(
+            [
+                prompt_tokenized["attention_mask"].squeeze(),
+                output_tokenized["attention_mask"].squeeze(),
+            ]
+        )[: self.max_length]
+
+        # Create labels tensor: -100 for prompt tokens (ignored in loss), actual ids for output
+        labels = torch.cat(
+            [
+                torch.full_like(prompt_tokenized["input_ids"].squeeze(), -100),
+                output_tokenized["input_ids"].squeeze(),
+            ]
+        )[: self.max_length]
+
         return {
-            "input_ids": torch.tensor(encoding["input_ids"], dtype=torch.long),
-            "attention_mask": torch.tensor(
-                encoding["attention_mask"], dtype=torch.long
-            ),
-            "labels": torch.tensor(encoding["labels"], dtype=torch.long),
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }
+
+
+# Also define BiblicalDataset for backward compatibility
+class BiblicalDataset(Dataset):
+    """Custom Dataset for biblical data (for backward compatibility)."""
+
+    def __init__(
+        self,
+        input_ids: torch.Tensor,
+        labels: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ):
+        """
+        Initialize the dataset with input_ids, labels, and attention_mask.
+
+        Args:
+            input_ids: Tensor of input token IDs.
+            labels: Tensor of label token IDs.
+            attention_mask: Tensor of attention masks.
+        """
+        self.input_ids = input_ids
+        self.labels = labels
+        self.attention_mask = attention_mask
+
+    def __len__(self) -> int:
+        return len(self.input_ids)
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        return {
+            "input_ids": self.input_ids[idx],
+            "labels": self.labels[idx],
+            "attention_mask": self.attention_mask[idx],
         }
 
 
 def create_bible_dataloaders(
-    train_data: str,
-    val_data: str,
-    tokenizer: BiblicalTokenizer,
-    batch_size: int = 16,
+    train_path: str,
+    val_path: str,
+    tokenizer: PreTrainedTokenizer,
+    batch_size: int = 8,
     max_length: int = 512,
-    num_workers: int = 4,
-) -> tuple[DataLoader, DataLoader]:
+) -> Tuple[DataLoader, DataLoader]:
     """
-    Create training and validation dataloaders.
-
+    Create DataLoaders for Bible training and validation.
+    
     Args:
-        train_data: Path to training data file
-        val_data: Path to validation data file
-        tokenizer: BiblicalTokenizer instance
-        batch_size: Batch size for training
-        max_length: Maximum sequence length
-        num_workers: Number of worker processes for data loading
-
+        train_path: Path to training Bible data.
+        val_path: Path to validation Bible data.
+        tokenizer: HuggingFace tokenizer to use.
+        batch_size: Batch size for DataLoaders.
+        max_length: Maximum sequence length.
+        
     Returns:
-        Tuple of (train_dataloader, val_dataloader)
+        Tuple of (train_loader, val_loader)
     """
-    # Create datasets
-    train_dataset = BibleDataset(train_data, tokenizer, max_length=max_length)
-    val_dataset = BibleDataset(val_data, tokenizer, max_length=max_length)
-
-    # Create dataloaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-    )
-
+    train_dataset = BibleDataset(train_path, tokenizer, max_length)
+    val_dataset = BibleDataset(val_path, tokenizer, max_length)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
     return train_loader, val_loader
 
 
 def create_instruction_dataloaders(
-    train_data: str,
-    val_data: str,
-    tokenizer: BiblicalTokenizer,
-    batch_size: int = 16,
+    train_path: str,
+    val_path: str,
+    tokenizer: PreTrainedTokenizer,
+    batch_size: int = 4,
     max_length: int = 512,
-    num_workers: int = 4,
     instruction_types: Optional[List[str]] = None,
-) -> tuple[DataLoader, DataLoader]:
+) -> Tuple[DataLoader, DataLoader]:
     """
-    Create training and validation dataloaders for instruction fine-tuning.
-
+    Create DataLoaders for instruction fine-tuning.
+    
     Args:
-        train_data: Path to training instruction data file
-        val_data: Path to validation instruction data file
-        tokenizer: BiblicalTokenizer instance
-        batch_size: Batch size for training
-        max_length: Maximum sequence length
-        num_workers: Number of worker processes for data loading
-        instruction_types: Optional list of instruction types to include
-
+        train_path: Path to training instruction data.
+        val_path: Path to validation instruction data.
+        tokenizer: HuggingFace tokenizer to use.
+        batch_size: Batch size for DataLoaders.
+        max_length: Maximum sequence length.
+        instruction_types: Optional list of instruction types to filter.
+        
     Returns:
-        Tuple of (train_dataloader, val_dataloader)
+        Tuple of (train_loader, val_loader)
     """
-    # Create datasets
     train_dataset = BibleInstructionDataset(
-        train_data,
-        tokenizer,
-        max_length=max_length,
-        instruction_types=instruction_types,
+        train_path, tokenizer, max_length, instruction_types
     )
     val_dataset = BibleInstructionDataset(
-        val_data, tokenizer, max_length=max_length, instruction_types=instruction_types
+        val_path, tokenizer, max_length, instruction_types
     )
-
-    # Create dataloaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-    )
-
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
     return train_loader, val_loader
