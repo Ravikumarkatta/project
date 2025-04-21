@@ -186,6 +186,49 @@ class SecurityManager:
 
         return (True, "Password meets requirements")
 
+    def check_security(self) -> Dict[str, Any]:
+        """
+        Check current security settings and status of the application.
+
+        Returns:
+            A dictionary containing the current security posture including
+            configuration settings, secret key status, and login tracking info.
+        """
+        issues = []
+
+        # Check if secret key is still the generated one (not production-safe)
+        is_generated_secret = not os.environ.get("BIBLE_AI_SECRET_KEY")
+        if is_generated_secret:
+            issues.append(
+                "Using auto-generated secret key. Set BIBLE_AI_SECRET_KEY for production."
+            )
+
+        # Check minimum password length
+        if self.config["password_min_length"] < 10:
+            issues.append("Password minimum length is too low.")
+
+        # Check if token expiry is at least 1 hour
+        if self.config["token_expiry"] < 3600:
+            issues.append("Token expiry duration is too short.")
+
+        # Check allowed origins
+        if not self.config.get("allowed_origins"):
+            issues.append("No allowed CORS origins defined.")
+
+        return {
+            "secret_key_set": not is_generated_secret,
+            "password_min_length": self.config["password_min_length"],
+            "token_expiry": self.config["token_expiry"],
+            "max_login_attempts": self.config["max_login_attempts"],
+            "lockout_time": self.config["lockout_time"],
+            "allowed_origins": self.config.get("allowed_origins", []),
+            "csrf_protection_enabled": self.config.get("csrf_protection", False),
+            "rate_limiting_enabled": self.config.get("rate_limiting", False),
+            "active_failed_logins": len(self.failed_logins),
+            "issues_detected": issues,
+            "status": "Secure" if not issues else "Attention Required",
+        }
+
     def generate_token(self, user_id: str, expiry_seconds: Optional[int] = None) -> str:
         """
         Generate a secure authentication token.
