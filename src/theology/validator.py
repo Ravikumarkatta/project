@@ -34,28 +34,36 @@ class TheologicalValidator:
                     with open(rule_file) as f:
                         data = json.load(f)
                         
-                        # Process orthodox statements as doctrinal
-                        for stmt in data.get("orthodox_statements", []):
-                            # Add to a generic category if no specific category is provided
-                            category = "general"
-                            if category not in rules["doctrinal"]:
-                                rules["doctrinal"][category] = {
+                        # Process orthodox statements
+                        if "orthodox_statements" in data:
+                            if "general" not in rules["doctrinal"]:
+                                rules["doctrinal"]["general"] = {
                                     "key_statements": [],
                                     "keywords": []
                                 }
-                            rules["doctrinal"][category]["key_statements"].append(stmt)
+                            rules["doctrinal"]["general"]["key_statements"].extend(
+                                data.get("orthodox_statements", [])
+                            )
                         
-                        # Process heterodox statements as heretical
-                        for stmt in data.get("heterodox_statements", []):
-                            # Add to a generic category if no specific category is provided
-                            category = "general"
-                            if category not in rules["heretical"]:
-                                rules["heretical"][category] = {
+                        # Process heterodox statements
+                        if "heterodox_statements" in data:
+                            if "general" not in rules["heretical"]:
+                                rules["heretical"]["general"] = {
                                     "patterns": []
                                 }
                             # Convert heterodox statements to regex patterns
-                            pattern = r".*" + re.escape(stmt) + r".*"
-                            rules["heretical"][category]["patterns"].append(pattern)
+                            for stmt in data.get("heterodox_statements", []):
+                                pattern = re.escape(stmt).replace(r"\ ", r"\s+")
+                                rules["heretical"]["general"]["patterns"].append(pattern)
+                        
+                        # Directly process doctrinal and heretical sections if they exist
+                        if "doctrinal" in data:
+                            for category, content in data["doctrinal"].items():
+                                rules["doctrinal"][category] = content
+                                
+                        if "heretical" in data:
+                            for category, content in data["heretical"].items():
+                                rules["heretical"][category] = content
                             
                 except Exception as e:
                     self.logger.error(f"Error loading rules from {rule_file}: {e}")
@@ -71,46 +79,51 @@ class TheologicalValidator:
         Returns:
             Validation score between 0 and 1
         """
-        if not statement.strip():
+        if not statement or not statement.strip():
             return 0.5  # Neutral score for empty text
             
         try:
-            # Get statement embedding
-            statement_embedding = self.model.encode([statement])[0]
+            # Track scores
+            orthodox_score = 0.0
+            heterodox_score = 0.0
             
-            # Collect all doctrinal statements
-            orthodox_statements = []
+            # Check doctrinal statements with embeddings
+            all_key_statements = []
             for category, content in self.rules["doctrinal"].items():
-                orthodox_statements.extend(content.get("key_statements", []))
+                key_statements = content.get("key_statements", [])
+                if key_statements:
+                    all_key_statements.extend(key_statements)
+                    
+                # Also check keywords
+                for keyword in content.get("keywords", []):
+                    if re.search(r'\b' + re.escape(keyword) + r'\b', statement, re.IGNORECASE):
+                        orthodox_score += 0.1  # Small boost for keyword match
             
-            # Calculate similarity with orthodox statements
-            if orthodox_statements:
-                orthodox_embeddings = self.model.encode(orthodox_statements)
+            # Get embeddings for orthodox statements
+            if all_key_statements:
+                statement_embedding = self.model.encode([statement])[0]
+                orthodox_embeddings = self.model.encode(all_key_statements)
                 orthodox_sims = cosine_similarity(
                     [statement_embedding], orthodox_embeddings
                 )[0]
-                max_orthodox_sim = np.max(orthodox_sims)
-            else:
-                max_orthodox_sim = 0
                 
-            # Check for heretical patterns
-            heretical_match = False
+                # Update orthodox score with max similarity
+                if len(orthodox_sims) > 0:
+                    orthodox_score = max(orthodox_score, float(np.max(orthodox_sims)))
+            
+            # Check heretical patterns
             for category, content in self.rules["heretical"].items():
                 for pattern in content.get("patterns", []):
                     if re.search(pattern, statement, re.IGNORECASE):
-                        heretical_match = True
+                        heterodox_score = max(heterodox_score, 0.8)  # Strong penalty for matching heretical pattern
                         break
-                if heretical_match:
-                    break
             
-            # Adjust score based on heretical match
-            max_heterodox_sim = 0.8 if heretical_match else 0
-                
-            # Calculate final score
-            # Higher similarity to orthodox and lower to heterodox statements results in higher score
-            score = (max_orthodox_sim - max_heterodox_sim + 1) / 2
+            # Calculate final score (ensure it's between 0 and 1)
+            # Higher orthodox score and lower heterodox score results in higher final score
+            score = (orthodox_score - heterodox_score + 1) / 2
+            score = min(max(score, 0.0), 1.0)
             
-            return float(min(max(score, 0.0), 1.0))  # Ensure score is between 0 and 1
+            return float(score)
 
         except Exception as e:
             self.logger.error(f"Validation error: {e}")
