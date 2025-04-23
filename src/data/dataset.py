@@ -58,18 +58,18 @@ class BibleDataset(Dataset):
         """Get tokenized verse."""
         verse = self.data[idx]
 
-        # Tokenize
+        # Tokenize without return_tensors to avoid extra dimension
         tokenized = self.tokenizer(
             verse,
             max_length=self.max_length,
             truncation=True,
             padding="max_length",
-            return_tensors="pt",
         )
 
+        # Convert to tensors manually
         return {
-            "input_ids": tokenized["input_ids"].squeeze(),
-            "attention_mask": tokenized["attention_mask"].squeeze(),
+            "input_ids": torch.tensor(tokenized["input_ids"], dtype=torch.long),
+            "attention_mask": torch.tensor(tokenized["attention_mask"], dtype=torch.long),
         }
 
 
@@ -122,47 +122,39 @@ class BibleInstructionDataset(Dataset):
         # Format prompt according to instruction tuning format
         prompt = f"Instruction: {instruction}\n\nInput: {input_text}\n\nOutput: "
 
-        # Tokenize prompt
+        # Tokenize prompt without return_tensors
         prompt_tokenized = self.tokenizer(
             prompt,
             max_length=self.max_length // 2,  # Reserve half length for output
             truncation=True,
             padding="max_length",
-            return_tensors="pt",
         )
 
-        # Tokenize output (labels)
+        # Tokenize output (labels) without return_tensors
         output_tokenized = self.tokenizer(
             output,
             max_length=self.max_length // 2,
             truncation=True,
             padding="max_length",
-            return_tensors="pt",
         )
 
         # Combine input_ids: prompt followed by output
-        input_ids = torch.cat(
-            [
-                prompt_tokenized["input_ids"].squeeze(),
-                output_tokenized["input_ids"].squeeze(),
-            ]
-        )[: self.max_length]
+        input_ids = torch.tensor(
+            prompt_tokenized["input_ids"] + output_tokenized["input_ids"],
+            dtype=torch.long
+        )[:self.max_length]
 
         # Create attention mask (1 for prompt and output tokens, 0 for padding)
-        attention_mask = torch.cat(
-            [
-                prompt_tokenized["attention_mask"].squeeze(),
-                output_tokenized["attention_mask"].squeeze(),
-            ]
-        )[: self.max_length]
+        attention_mask = torch.tensor(
+            prompt_tokenized["attention_mask"] + output_tokenized["attention_mask"],
+            dtype=torch.long
+        )[:self.max_length]
 
         # Create labels tensor: -100 for prompt tokens (ignored in loss), actual ids for output
-        labels = torch.cat(
-            [
-                torch.full_like(prompt_tokenized["input_ids"].squeeze(), -100),
-                output_tokenized["input_ids"].squeeze(),
-            ]
-        )[: self.max_length]
+        labels = torch.tensor(
+            [-100] * len(prompt_tokenized["input_ids"]) + output_tokenized["input_ids"],
+            dtype=torch.long
+        )[:self.max_length]
 
         return {
             "input_ids": input_ids,
