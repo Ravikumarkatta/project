@@ -1,4 +1,4 @@
-name: Bible-AI Basic Pipeline
+name: Bible-AI Comprehensive Pipeline
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
 
 jobs:
   code-quality:
-    name: Basic Code Quality
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
           fi
 
   testing:
-    name: Basic Testing
+    name: Comprehensive Testing
     needs: code-quality
     runs-on: ubuntu-latest
 
@@ -67,7 +67,7 @@ jobs:
           if [ -f requirements-dev.txt ]; then
             pip install -r requirements-dev.txt
           else
-            pip install pytest
+            pip install pytest pytest-cov
           fi
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
@@ -79,28 +79,20 @@ jobs:
           touch src/__init__.py tests/__init__.py
           echo "Directory structure verified"
 
-      - name: Create test.py if missing
+      - name: Run all tests with pytest
         run: |
-          if [ ! -f tests/test.py ]; then
-            echo "Creating tests/test.py"
-            echo 'def test_basic():' > tests/test.py
-            echo '    """Basic test to ensure test.py works."""' >> tests/test.py
-            echo '    assert True' >> tests/test.py
-          fi
-          chmod +x tests/test.py
+          echo "Running all tests with pytest..."
+          python -m pytest tests/ -v
 
-      - name: Run tests
+      - name: Run tests with coverage (if pytest-cov installed)
+        continue-on-error: true
         run: |
-          echo "Checking for test.py..."
-          ls -l tests/test.py || echo "test.py not found"
-
-          if command -v pytest &> /dev/null; then
-            echo "Running tests with pytest..."
-            pytest tests/test.py -v || (echo "Tests failed"; exit 1)
+          if pip list | grep -q pytest-cov; then
+            echo "Running tests with coverage..."
+            python -m pytest tests/ --cov=src/ --cov-report=xml
           else
-            echo "Pytest not found, using unittest..."
-            python -m unittest tests/test.py || (echo "Unittest failed"; exit 1)
-            fi
+            echo "pytest-cov not installed, skipping coverage report"
+          fi
 
   frontend-check:
     name: Frontend Check
@@ -148,4 +140,3 @@ jobs:
           else
             echo "Frontend tests failed but continuing"
           fi
-          
