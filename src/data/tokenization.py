@@ -24,7 +24,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-hf_logging.set_verbosity_warning())
+hf_logging.set_verbosity_warning()
 
 # Terminal colors
 class bcolors:
