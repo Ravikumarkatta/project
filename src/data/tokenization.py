@@ -11,7 +11,7 @@ import re
 import os
 import logging
 from io import BytesIO
-from typing import Dict, Optional, List, Union, Any
+from typing import Dict, Optional, List, Union, Any, Tuple
 import torch
 from torch.serialization import load, SourceChangeWarning
 from transformers import AutoTokenizer, PreTrainedTokenizer, logging as hf_logging
