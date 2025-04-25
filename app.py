@@ -180,20 +180,17 @@ async def get_chapter(book: str, chapter: int):
     """
     Retrieve an entire chapter from the Bible.
     """
-    try:
-        if book in bible_data:
-            chapter_data = bible_data[book].get(str(chapter))
-            if chapter_data:
-                logger.info(f"Retrieved chapter: {book} {chapter}")
-                return {
-                    "book": book,
-                    "chapter": chapter,
-                    "verses": chapter_data
-                }
-        raise HTTPException(status_code=404, detail="Chapter not found")
-    except Exception as e:
-        logger.error(f"Error retrieving chapter: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if book in bible_data:
+        chapter_data = bible_data[book].get(str(chapter))
+        if chapter_data:
+            logger.info(f"Retrieved chapter: {book} {chapter}")
+            return {
+                "book": book,
+                "chapter": chapter,
+                "verses": chapter_data
+            }
+    logger.error(f"Chapter not found: {book} {chapter}")
+    raise HTTPException(status_code=404, detail="Chapter not found")
 
 @app.get("/api/v1/search", response_model=SearchResponse)
 async def search_bible(q: str, book: Optional[str] = None):
@@ -251,51 +248,59 @@ async def get_cross_references(book: str, chapter: int, verse: int):
     """
     Find cross-references for a specific verse.
     """
+    # First get the source verse
     try:
-        # First get the source verse
         source_verse = await get_verse(book, chapter, verse)
-        
-        # Example cross-reference logic (to be enhanced with actual cross-reference database)
-        # For now, return related verses based on simple text matching
-        search_terms = source_verse["text"].lower().split()
-        cross_refs = []
-        
-        for b in bible_data:
-            for ch in bible_data[b]:
-                for v, text in bible_data[b][ch].items():
-                    if b == book and int(ch) == chapter and int(v) == verse:
-                        continue
-                    
-                    # Simple matching logic - look for verses with similar key terms
-                    matches = sum(1 for term in search_terms if term.lower() in text.lower())
-                    if matches >= 2:  # At least 2 matching terms
-                        cross_refs.append({
-                            "book": b,
-                            "chapter": int(ch),
-                            "verse": int(v),
-                            "text": text
-                        })
-        
-        logger.info(f"Found {len(cross_refs)} cross-references for {book} {chapter}:{verse}")
-        return {
-            "source_verse": source_verse,
-            "cross_references": cross_refs[:5],  # Limit to top 5 matches
-            "relationship_type": "thematic"  # To be enhanced with actual relationship classification
-        }
-    except Exception as e:
-        logger.error(f"Error finding cross-references: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.error(f"Source verse not found for cross-references: {book} {chapter}:{verse}")
+            raise HTTPException(status_code=404, detail="Source verse not found")
+        raise
+    
+    # Example cross-reference logic (to be enhanced with actual cross-reference database)
+    # For now, return related verses based on simple text matching
+    search_terms = source_verse["text"].lower().split()
+    cross_refs = []
+    
+    for b in bible_data:
+        for ch in bible_data[b]:
+            for v, text in bible_data[b][ch].items():
+                if b == book and int(ch) == chapter and int(v) == verse:
+                    continue
+                
+                # Simple matching logic - look for verses with similar key terms
+                matches = sum(1 for term in search_terms if term.lower() in text.lower())
+                if matches >= 2:  # At least 2 matching terms
+                    cross_refs.append({
+                        "book": b,
+                        "chapter": int(ch),
+                        "verse": int(v),
+                        "text": text
+                    })
+    
+    logger.info(f"Found {len(cross_refs)} cross-references for {book} {chapter}:{verse}")
+    return {
+        "source_verse": source_verse,
+        "cross_references": cross_refs[:5],  # Limit to top 5 matches
+        "relationship_type": "thematic"  # To be enhanced with actual relationship classification
+    }
 
 @app.get("/api/v1/context/{book}/{chapter}/{verse}", response_model=ContextAnalysisResponse)
 async def get_verse_context(book: str, chapter: int, verse: int):
     """
     Get contextual analysis for a specific verse.
     """
+    # Get the target verse
     try:
-        # Get the target verse
         verse_data = await get_verse(book, chapter, verse)
-        
-        # Get surrounding verses for chapter context
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.error(f"Source verse not found for context analysis: {book} {chapter}:{verse}")
+            raise HTTPException(status_code=404, detail="Source verse not found")
+        raise
+    
+    # Get surrounding verses for chapter context
+    try:
         chapter_data = await get_chapter(book, chapter)
         verses = chapter_data["verses"]
         verse_numbers = sorted([int(v) for v in verses.keys()])
@@ -317,9 +322,11 @@ async def get_verse_context(book: str, chapter: int, verse: int):
             "theological_context": "Theological context to be enhanced with theological analysis",
             "chapter_context": "\n".join(context_verses)
         }
-    except Exception as e:
-        logger.error(f"Error generating context analysis: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.error(f"Chapter not found for context analysis: {book} {chapter}")
+            raise HTTPException(status_code=404, detail="Chapter not found")
+        raise
 
 @app.post("/api/v1/analyze/references", response_model=TextAnalysisResponse)
 async def analyze_verse_references(request: TextAnalysisRequest):
