@@ -51,7 +51,6 @@ class HermeneuticalPrinciples:
             self.logger.error(f"Failed to load rules: {e}")
             raise
 
-
     def analyze_interpretation(
         self, text: str, verse_refs: List[str], genre: Optional[str] = None
     ) -> Dict[str, Any]:

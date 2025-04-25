@@ -1,7 +1,7 @@
 {
   "validator_version": "1.0",
   "minimum_score": 70.0,
-  
+
   "core_terms": {
     "required": ["God", "Jesus", "Holy Spirit"],
     "forbidden": ["heresy", "blasphemy"],

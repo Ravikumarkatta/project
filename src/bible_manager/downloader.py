@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests  # type: ignore  # Using type: ignore until types-requests is installed
-from tqdm import tqdm  # type: ignore  # Using type: ignore until types-tqdm is installed
+from tqdm import (
+    tqdm,  # type: ignore  # Using type: ignore until types-tqdm is installed
+)
 
 try:
     from src.utils.logger import get_logger

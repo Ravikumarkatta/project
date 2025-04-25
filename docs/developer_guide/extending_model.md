@@ -46,7 +46,7 @@ class TopicalClassificationHead(nn.Module):
         self.activation = nn.GELU()
         self.layer_norm = nn.LayerNorm(hidden_size)
         self.classifier = nn.Linear(hidden_size, num_topics)
-        
+
     def forward(self, hidden_states):
         x = self.dense(hidden_states[:, 0])  # Use [CLS] token
         x = self.activation(x)
@@ -60,17 +60,17 @@ class TopicalClassificationHead(nn.Module):
 class BibleAIModel(nn.Module):
     def __init__(self, config):
         # ... existing initialization code ...
-        
+
         # Add your new head if specified in config
         if config.get("use_topical_classification", False):
             self.topical_head = TopicalClassificationHead(
-                config.hidden_size, 
+                config.hidden_size,
                 config.get("num_topics", 100)
             )
-        
+
     def forward(self, input_ids, attention_mask=None, task="qa", **kwargs):
         # ... existing forward pass code ...
-        
+
         # Add logic for your new task
         if task == "topical_classification":
             return self.topical_head(hidden_states)
@@ -88,7 +88,7 @@ class CrossReferenceAttention(nn.Module):
     def __init__(self, hidden_size, num_heads=8):
         super().__init__()
         self.attention = nn.MultiheadAttention(hidden_size, num_heads)
-        
+
     def forward(self, hidden_states, cross_ref_mask=None):
         # Implementation for cross-reference attention
         # ...
@@ -105,15 +105,15 @@ class ScriptureEncoderLayer(nn.Module):
         # ... existing layers ...
         if config.get("use_cross_ref_attention", False):
             self.cross_ref_attention = CrossReferenceAttention(
-                config.hidden_size, 
+                config.hidden_size,
                 config.get("cross_ref_heads", 8)
             )
-        
+
     def forward(self, hidden_states, attention_mask=None, cross_ref_mask=None):
         # ... existing forward pass ...
         if hasattr(self, "cross_ref_attention"):
             hidden_states = self.cross_ref_attention(
-                hidden_states, 
+                hidden_states,
                 cross_ref_mask
             )
         return hidden_states
@@ -128,14 +128,14 @@ To support new model capabilities, you might need to extend data processing:
 ```python
 class CrossReferenceProcessor:
     """Processor for identifying and encoding cross-references"""
-    
+
     def __init__(self, cross_ref_db_path):
         self.cross_ref_db = self.load_cross_references(cross_ref_db_path)
-        
+
     def load_cross_references(self, path):
         # Load cross-reference database
         # ...
-        
+
     def process_text(self, text):
         # Identify cross-references in text
         # ...
@@ -153,13 +153,13 @@ To extend theological reasoning:
 ```python
 class DenominationalReasoner:
     """Handles denominational perspectives in theological reasoning"""
-    
+
     def __init__(self, config):
         self.denomination_embeddings = nn.Embedding(
-            config.num_denominations, 
+            config.num_denominations,
             config.hidden_size
         )
-        
+
     def contextualize(self, hidden_states, denomination_id):
         # Apply denominational context to reasoning
         # ...
@@ -206,14 +206,14 @@ Always create tests for new components:
 def test_topical_classification_head():
     config = {"hidden_size": 768, "num_topics": 100}
     head = TopicalClassificationHead(config["hidden_size"], config["num_topics"])
-    
+
     # Create dummy input
     batch_size = 8
     hidden_states = torch.rand(batch_size, 10, config["hidden_size"])
-    
+
     # Get output
     output = head(hidden_states)
-    
+
     # Check output shape
     assert output.shape == (batch_size, config["num_topics"])
 ```

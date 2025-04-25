@@ -5,8 +5,8 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 from torch import Tensor
+from torch.utils.checkpoint import checkpoint
 
 
 class MultiHeadAttention(nn.Module):
@@ -85,6 +85,7 @@ class MultiHeadAttention(nn.Module):
             context_layer: Tensor of shape [batch_size, seq_length, hidden_size]
             attention_probs: Optional tensor of attention probabilities
         """
+
         # Define a helper function for checkpointing
         def attention_fn(q, k, v, mask, verse_pos):
             mixed_query_layer = self.query(q)
@@ -125,13 +126,13 @@ class MultiHeadAttention(nn.Module):
 
             # Apply attention weights to value layer
             context_layer = torch.matmul(attention_probs, value_layer)
-            
+
             # Reshape output properly
             context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
             context_layer = context_layer.view(
                 context_layer.size(0), context_layer.size(1), self.hidden_size
             )
-            
+
             return context_layer, attention_probs if output_attentions else None
 
         # Use checkpointing for the attention computation
@@ -144,7 +145,7 @@ class MultiHeadAttention(nn.Module):
             verse_positions,
             use_reentrant=False,
         )
-        
+
         # Project and apply dropout
         output_layer = self.output(context_layer)
         output_layer = self.output_dropout(output_layer)

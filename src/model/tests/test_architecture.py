@@ -1,7 +1,11 @@
 import pytest
 import torch
+from transformers import (  # Assuming you're using Hugging Face's tokenizer
+    PreTrainedTokenizer,
+)
+
 from src.model.architecture import BiblicalTransformer, BiblicalTransformerConfig
-from transformers import PreTrainedTokenizer  # Assuming you're using Hugging Face's tokenizer
+
 
 def test_biblical_transformer() -> None:
     """
@@ -10,13 +14,11 @@ def test_biblical_transformer() -> None:
     Ensures that the model produces the expected output shapes for logits and verse_logits.
     """
     # Initialize the tokenizer
-    tokenizer = PreTrainedTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = PreTrainedTokenizer.from_pretrained("bert-base-uncased")
 
     # Define the model configuration
     config = BiblicalTransformerConfig(
-        vocab_size=1000,
-        hidden_size=768,
-        num_hidden_layers=2
+        vocab_size=1000, hidden_size=768, num_hidden_layers=2
     )
 
     # Initialize the model with the configuration and tokenizer

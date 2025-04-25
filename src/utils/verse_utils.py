@@ -3,6 +3,7 @@
 # 1.1: Add type hints for function signature
 from typing import Optional
 
+
 # Corrected function definition with type hints
 # Addresses: src/utils/verse_utils.py:4: error: Function is missing a type annotation [no-untyped-def]
 def is_valid_verse_reference(reference: str) -> bool:
@@ -25,20 +26,73 @@ def is_valid_verse_reference(reference: str) -> bool:
     # 4. If verse is specified, it must be within valid range for that chapter
 
     valid_books = {
-        "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
-        "Joshua": 24, "Judges": 21, "Ruth": 4, "1 Samuel": 31, "2 Samuel": 24,
-        "1 Kings": 22, "2 Kings": 25, "1 Chronicles": 29, "2 Chronicles": 36, "Ezra": 10,
-        "Nehemiah": 13, "Esther": 10, "Job": 42, "Psalm": 150, "Psalms": 150,
-        "Proverbs": 31, "Ecclesiastes": 12, "Song of Solomon": 8, "Isaiah": 66,
-        "Jeremiah": 52, "Lamentations": 5, "Ezekiel": 48, "Daniel": 12, "Hosea": 14,
-        "Joel": 3, "Amos": 9, "Obadiah": 1, "Jonah": 4, "Micah": 7, "Nahum": 3,
-        "Habakkuk": 3, "Zephaniah": 3, "Haggai": 2, "Zechariah": 14, "Malachi": 4,
-        "Matthew": 28, "Mark": 16, "Luke": 24, "John": 21, "Acts": 28, "Romans": 16,
-        "1 Corinthians": 16, "2 Corinthians": 13, "Galatians": 6, "Ephesians": 6,
-        "Philippians": 4, "Colossians": 4, "1 Thessalonians": 5, "2 Thessalonians": 3,
-        "1 Timothy": 6, "2 Timothy": 4, "Titus": 3, "Philemon": 1, "Hebrews": 13,
-        "James": 5, "1 Peter": 5, "2 Peter": 3, "1 John": 5, "2 John": 1, "3 John": 1,
-        "Jude": 1, "Revelation": 22,
+        "Genesis": 50,
+        "Exodus": 40,
+        "Leviticus": 27,
+        "Numbers": 36,
+        "Deuteronomy": 34,
+        "Joshua": 24,
+        "Judges": 21,
+        "Ruth": 4,
+        "1 Samuel": 31,
+        "2 Samuel": 24,
+        "1 Kings": 22,
+        "2 Kings": 25,
+        "1 Chronicles": 29,
+        "2 Chronicles": 36,
+        "Ezra": 10,
+        "Nehemiah": 13,
+        "Esther": 10,
+        "Job": 42,
+        "Psalm": 150,
+        "Psalms": 150,
+        "Proverbs": 31,
+        "Ecclesiastes": 12,
+        "Song of Solomon": 8,
+        "Isaiah": 66,
+        "Jeremiah": 52,
+        "Lamentations": 5,
+        "Ezekiel": 48,
+        "Daniel": 12,
+        "Hosea": 14,
+        "Joel": 3,
+        "Amos": 9,
+        "Obadiah": 1,
+        "Jonah": 4,
+        "Micah": 7,
+        "Nahum": 3,
+        "Habakkuk": 3,
+        "Zephaniah": 3,
+        "Haggai": 2,
+        "Zechariah": 14,
+        "Malachi": 4,
+        "Matthew": 28,
+        "Mark": 16,
+        "Luke": 24,
+        "John": 21,
+        "Acts": 28,
+        "Romans": 16,
+        "1 Corinthians": 16,
+        "2 Corinthians": 13,
+        "Galatians": 6,
+        "Ephesians": 6,
+        "Philippians": 4,
+        "Colossians": 4,
+        "1 Thessalonians": 5,
+        "2 Thessalonians": 3,
+        "1 Timothy": 6,
+        "2 Timothy": 4,
+        "Titus": 3,
+        "Philemon": 1,
+        "Hebrews": 13,
+        "James": 5,
+        "1 Peter": 5,
+        "2 Peter": 3,
+        "1 John": 5,
+        "2 John": 1,
+        "3 John": 1,
+        "Jude": 1,
+        "Revelation": 22,
     }
 
     # Parse the reference
@@ -46,7 +100,7 @@ def is_valid_verse_reference(reference: str) -> bool:
 
     # Handle books with spaces in their names
     book_name: str = ""
-    chapter_verse_str: str = "" # Use a distinct name for the string part
+    chapter_verse_str: str = ""  # Use a distinct name for the string part
 
     for i, part in enumerate(parts):
         # Check if the part looks like a chapter/verse indicator
@@ -65,9 +119,9 @@ def is_valid_verse_reference(reference: str) -> bool:
             chapter_verse_str = parts[-1]
             book_name = " ".join(parts[:-1])
         elif len(parts) >= 1:
-             # Assume the whole reference is just the book name
-             book_name = " ".join(parts)
-             # chapter_verse_str remains empty
+            # Assume the whole reference is just the book name
+            book_name = " ".join(parts)
+            # chapter_verse_str remains empty
 
     # If we still don't have a book name, return False
     if not book_name:
@@ -79,7 +133,7 @@ def is_valid_verse_reference(reference: str) -> bool:
         normalized_book = "Psalms" if book_name == "Psalm" else book_name
         if normalized_book not in valid_books:
             return False
-        book_name = normalized_book # Use the normalized name going forward
+        book_name = normalized_book  # Use the normalized name going forward
 
     # If no chapter/verse specified, this is a book reference (valid)
     if not chapter_verse_str:
@@ -112,7 +166,11 @@ def is_valid_verse_reference(reference: str) -> bool:
 
                 # Check using integer variables (start_verse_num, end_verse_num)
                 # Addresses: src/utils/verse_utils.py:141: error: Unsupported operand types...
-                if start_verse_num <= 0 or end_verse_num <= 0 or start_verse_num > end_verse_num:
+                if (
+                    start_verse_num <= 0
+                    or end_verse_num <= 0
+                    or start_verse_num > end_verse_num
+                ):
                     return False
             else:
                 # Single verse
@@ -126,7 +184,7 @@ def is_valid_verse_reference(reference: str) -> bool:
         except ValueError:
             # Handle cases like "John 3:abc" or "John 3:16-abc"
             return False
-    elif chapter_verse_str.isdigit(): # type: ignore # Keep ignore for now, logic seems okay
+    elif chapter_verse_str.isdigit():  # type: ignore # Keep ignore for now, logic seems okay
         # Only chapter specified (e.g., "3")
         try:
             # Assign result of int() to the integer variable chapter_num
@@ -136,9 +194,8 @@ def is_valid_verse_reference(reference: str) -> bool:
             # Should not happen if isdigit() is true, but good practice
             return False
     else:
-         # Invalid format if it's not a number and doesn't contain ':'
-         return False
-
+        # Invalid format if it's not a number and doesn't contain ':'
+        return False
 
     # Check if chapter is valid for this book (only if chapter_num was parsed)
     if chapter_num is not None:

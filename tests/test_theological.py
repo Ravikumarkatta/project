@@ -1,9 +1,10 @@
 import json
-from pathlib import Path
-import pytest
 import re
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
+import pytest
 
 from src.theology.validator import TheologicalValidator
 
@@ -29,10 +30,10 @@ def sample_rules():
             "general": {
                 "key_statements": [
                     "God exists in three persons: Father, Son, and Holy Spirit",
-                    "Salvation is by grace through faith alone"
+                    "Salvation is by grace through faith alone",
                 ],
-                "keywords": ["Trinity", "grace", "faith"]
-            }
+                "keywords": ["Trinity", "grace", "faith"],
+            },
         },
         "heretical": {
             "works_based_salvation": {
@@ -47,7 +48,7 @@ def sample_rules():
                     r"earn.*salvation",
                     r"work.*to be saved",
                 ]
-            }
+            },
         },
     }
 
@@ -56,15 +57,17 @@ def sample_rules():
 def validator(sample_rules, monkeypatch):
     # Mock the SentenceTransformer to avoid loading actual model
     mock_sentence_transformer = MagicMock()
-    mock_sentence_transformer.return_value.encode.return_value = np.array([[0.1, 0.2, 0.3]])
+    mock_sentence_transformer.return_value.encode.return_value = np.array(
+        [[0.1, 0.2, 0.3]]
+    )
 
-    with patch('sentence_transformers.SentenceTransformer', mock_sentence_transformer):
+    with patch("sentence_transformers.SentenceTransformer", mock_sentence_transformer):
         # Create validator with mocked model
         validator = TheologicalValidator(model_name="all-MiniLM-L6-v2")
-        
+
         # Replace the rules with our sample rules
         monkeypatch.setattr(validator, "rules", sample_rules)
-        
+
         return validator
 
 
@@ -103,16 +106,20 @@ def test_validate_batch(validator):
     assert scores[2] == 0.5  # Empty text returns neutral score
 
 
-@patch('sentence_transformers.SentenceTransformer')
+@patch("sentence_transformers.SentenceTransformer")
 def test_theological_embeddings(mock_transformer, validator):
     # Mock cosine_similarity to return a predictable value
-    with patch('sklearn.metrics.pairwise.cosine_similarity', return_value=np.array([[0.8]])):
+    with patch(
+        "sklearn.metrics.pairwise.cosine_similarity", return_value=np.array([[0.8]])
+    ):
         text1 = "God exists in three persons: Father, Son, and Holy Spirit"
         text2 = "The Trinity is one God in three divine persons"
-        
+
         # Since we're using mock model, let's test the semantics validation directly
         mock_transformer.return_value.encode.return_value = np.array([[0.1, 0.2, 0.3]])
-        
+
         # Test with a new statement not in rules but semantically similar
-        score = validator.validate("The Trinity consists of Father, Son and Holy Spirit")
+        score = validator.validate(
+            "The Trinity consists of Father, Son and Holy Spirit"
+        )
         assert score > 0.5  # Should recognize as similar to doctrinal statements

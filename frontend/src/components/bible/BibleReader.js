@@ -43,8 +43,8 @@ const BibleReader = ({ initialReference = 'John 3:16' }) => {
 
   return (
     <div className="bible-reader">
-      <BibleControls 
-        currentReference={initialReference} 
+      <BibleControls
+        currentReference={initialReference}
         currentVersion={currentVersion}
         onReferenceChange={handleReferenceChange}
         onToggleContext={() => setShowContext(!showContext)}
@@ -52,30 +52,30 @@ const BibleReader = ({ initialReference = 'John 3:16' }) => {
         showContext={showContext}
         showCrossRefs={showCrossRefs}
       />
-      
-      <VerseDisplay 
-        text={currentText.text} 
+
+      <VerseDisplay
+        text={currentText.text}
         reference={currentText.reference}
         version={currentVersion}
         onWordSelect={handleWordSelect}
       />
-      
+
       {showContext && (
-        <VerseContext 
-          reference={currentText.reference} 
+        <VerseContext
+          reference={currentText.reference}
           version={currentVersion}
           denominationalPerspective={denominationalPerspective}
         />
       )}
-      
+
       {showCrossRefs && (
-        <CrossReferences 
+        <CrossReferences
           reference={currentText.reference}
           version={currentVersion}
           onReferenceClick={handleReferenceChange}
         />
       )}
-      
+
       {selectedWord && (
         <LexiconPopup
           word={selectedWord.word}

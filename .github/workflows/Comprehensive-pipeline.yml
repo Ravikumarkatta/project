@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -26,26 +26,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install pytest black flake8
-          fi
+          pip install -r requirements-dev.txt
 
-      - name: Code Style Check
-        continue-on-error: true
-        run: |
-          if command -v black &> /dev/null; then
-            black --check src/ tests/ || echo "Black style issues found"
-          else
-            echo "Black not installed, skipping"
-          fi
-          
-          if command -v flake8 &> /dev/null; then
-            flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203 || echo "Flake8 issues found"
-          else
-            echo "Flake8 not installed, skipping"
-          fi
+      - name: Code Style Check (Black)
+        run: black --check src/ tests/
+
+      - name: Code Style Check (Flake8)
+        run: flake8 src/ tests/
 
   testing:
     name: Comprehensive Testing
@@ -64,35 +51,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install pytest pytest-cov
-          fi
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-
-      - name: Verify directory structure
-        run: |
-          mkdir -p src tests scripts config
-          touch src/__init__.py tests/__init__.py
-          echo "Directory structure verified"
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
 
       - name: Run all tests with pytest
-        run: |
-          echo "Running all tests with pytest..."
-          python -m pytest tests/ -v
+        run: python -m pytest tests/ -v
 
-      - name: Run tests with coverage (if pytest-cov installed)
-        continue-on-error: true
-        run: |
-          if pip list | grep -q pytest-cov; then
-            echo "Running tests with coverage..."
-            python -m pytest tests/ --cov=src/ --cov-report=xml
-          else
-            echo "pytest-cov not installed, skipping coverage report"
-          fi
+      - name: Run tests with coverage
+        # Assumes pytest-cov is in requirements-dev.txt
+        run: python -m pytest tests/ --cov=src/ --cov-report=xml
 
   frontend-check:
     name: Frontend Check

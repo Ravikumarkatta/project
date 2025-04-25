@@ -5,8 +5,9 @@ import json
 import logging
 import os
 from pathlib import Path
+
 # 2.2: Import Optional and Any
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 # 2.1: Add type hint for 'level' parameter
@@ -60,7 +61,6 @@ def setup_logger(
             # Log error if directory creation or file handler setup fails
             logger.error(f"Failed to set up file handler for {log_file}: {e}")
 
-
     return logger
 
 
@@ -97,7 +97,7 @@ def load_logging_config(config_path: Optional[str] = None) -> Dict[str, Any]:
                 "class": "logging.FileHandler",
                 "level": "DEBUG",
                 "formatter": "detailed",
-                "filename": "logs/app.log", # Default log file path
+                "filename": "logs/app.log",  # Default log file path
                 "mode": "a",
             },
         },
@@ -124,11 +124,13 @@ def load_logging_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
     return default_config
 
+
 # Optional: Function to get logger using the loaded config (if you prefer this pattern)
 # def get_logger_from_config(name: str, config_path: Optional[str] = None) -> logging.Logger:
 #     config = load_logging_config(config_path)
 #     logging.config.dictConfig(config)
 #     return logging.getLogger(name)
+
 
 # Simpler function to just get a logger instance (often sufficient)
 def get_logger(name: str) -> logging.Logger:

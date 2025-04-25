@@ -6,7 +6,7 @@
 
 //commonjs loader
 
-/** 
+/**
  * The following is the exact list of additions to JSON's syntax introduced by JSON5. All of these are optional, and all of these come from ES5.
 
 Objects

@@ -708,6 +708,7 @@ class BiblicalTextPreprocessor:
 # ===================== Added Code: Training Data Pipeline =====================
 # The following code integrates tokenizer-based data preparation for training.
 
+
 # Define BiblicalDataset first since it's used in the return type annotation below
 class BiblicalDataset(Dataset):
     """Custom Dataset for biblical data."""
@@ -915,40 +916,40 @@ def prepare_tokenized_datasets(
         max_length: Maximum sequence length
     """
     # Load data
-    with open(instruction_data_path, 'r', encoding='utf-8') as f:
+    with open(instruction_data_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    
+
     # Shuffle data
     random.shuffle(data)
-    
+
     # Split data
     split_idx = int(len(data) * train_split)
     train_data = data[:split_idx]
     val_data = data[split_idx:]
-    
+
     # Create temporary datasets
     train_set = BibleInstructionDataset(train_data, tokenizer, max_length)
     val_set = BibleInstructionDataset(val_data, tokenizer, max_length)
-    
+
     # Collect all examples
     train_examples = []
     val_examples = []
-    
+
     for i in range(len(train_set)):
         train_examples.append(train_set[i])
-    
+
     for i in range(len(val_set)):
         val_examples.append(val_set[i])
-    
+
     # Combine into tensors
     train_input_ids = torch.stack([ex["input_ids"] for ex in train_examples])
     train_attention_mask = torch.stack([ex["attention_mask"] for ex in train_examples])
     train_labels = torch.stack([ex["labels"] for ex in train_examples])
-    
+
     val_input_ids = torch.stack([ex["input_ids"] for ex in val_examples])
     val_attention_mask = torch.stack([ex["attention_mask"] for ex in val_examples])
     val_labels = torch.stack([ex["labels"] for ex in val_examples])
-    
+
     # Save processed data
     os.makedirs(output_dir, exist_ok=True)
     torch.save(
@@ -957,7 +958,7 @@ def prepare_tokenized_datasets(
             "attention_mask": train_attention_mask,
             "labels": train_labels,
         },
-        os.path.join(output_dir, "train.pt")
+        os.path.join(output_dir, "train.pt"),
     )
     torch.save(
         {
@@ -965,9 +966,9 @@ def prepare_tokenized_datasets(
             "attention_mask": val_attention_mask,
             "labels": val_labels,
         },
-        os.path.join(output_dir, "val.pt")
+        os.path.join(output_dir, "val.pt"),
     )
-    
+
     logger.info(f"Saved processed datasets to {output_dir}")
     logger.info(f"Train set: {len(train_examples)} examples")
     logger.info(f"Validation set: {len(val_examples)} examples")
@@ -976,10 +977,10 @@ def prepare_tokenized_datasets(
 def validate_instruction_data(instruction_data_path: str) -> bool:
     """
     Validate instruction data against schema.
-    
+
     Args:
         instruction_data_path: Path to instruction data JSON file
-        
+
     Returns:
         True if validation passes, False otherwise
     """
@@ -992,19 +993,19 @@ def validate_instruction_data(instruction_data_path: str) -> bool:
             "properties": {
                 "instruction": {"type": "string"},
                 "input": {"type": "string"},
-                "output": {"type": "string"}
-            }
-        }
+                "output": {"type": "string"},
+            },
+        },
     }
-    
+
     try:
-        with open(instruction_data_path, 'r', encoding='utf-8') as f:
+        with open(instruction_data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
+
         validate(instance=data, schema=schema)
         logger.info(f"Validation successful for {instruction_data_path}")
         return True
-    
+
     except Exception as e:
         logger.error(f"Validation failed for {instruction_data_path}: {e}")
         return False
@@ -1013,16 +1014,16 @@ def validate_instruction_data(instruction_data_path: str) -> bool:
 def clean_and_normalize_dataset(df: pd.DataFrame) -> pd.DataFrame:
     """
     Perform additional cleaning and normalization on the verse-aligned dataset.
-    
+
     Args:
         df: DataFrame from create_verse_aligned_dataset
-        
+
     Returns:
         Cleaned and normalized DataFrame
     """
     # Make a copy to avoid modifying the original
     cleaned_df = df.copy()
-    
+
     # Standardize book names
     book_name_mapping = {
         "Gen": "Genesis",
@@ -1090,127 +1091,147 @@ def clean_and_normalize_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "2Jo": "2 John",
         "3Jo": "3 John",
         "Jud": "Jude",
-        "Rev": "Revelation"
+        "Rev": "Revelation",
     }
-    
+
     # Apply book name standardization where needed
-    cleaned_df["book"] = cleaned_df["book"].apply(
-        lambda x: book_name_mapping.get(x, x)
-    )
-    
+    cleaned_df["book"] = cleaned_df["book"].apply(lambda x: book_name_mapping.get(x, x))
+
     # Regenerate reference field for consistency
     cleaned_df["reference"] = cleaned_df.apply(
-        lambda row: f"{row['book']} {row['chapter']}:{row['verse']}", 
-        axis=1
+        lambda row: f"{row['book']} {row['chapter']}:{row['verse']}", axis=1
     )
-    
+
     # Clean text fields - remove excess whitespace
     for col in cleaned_df.columns:
         if col.startswith("text_") or col.startswith("commentary_"):
             cleaned_df[col] = cleaned_df[col].apply(
-                lambda x: re.sub(r'\s+', ' ', str(x)).strip() if pd.notna(x) else x
+                lambda x: re.sub(r"\s+", " ", str(x)).strip() if pd.notna(x) else x
             )
-    
+
     return cleaned_df
 
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Biblical text preprocessing utility")
-    parser.add_argument("--config", type=str, required=True, help="Path to configuration file")
-    parser.add_argument("--sqlite", action="store_true", help="Use SQLite instead of PostgreSQL")
-    parser.add_argument("--process_bibles", action="store_true", help="Process Bible files")
-    parser.add_argument("--process_commentaries", action="store_true", help="Process commentary files")
-    parser.add_argument("--create_aligned_dataset", action="store_true", help="Create verse-aligned dataset")
-    parser.add_argument("--generate_instruction_data", action="store_true", help="Generate instruction data")
-    parser.add_argument("--prepare_tokenized", action="store_true", help="Prepare tokenized datasets")
+    parser.add_argument(
+        "--config", type=str, required=True, help="Path to configuration file"
+    )
+    parser.add_argument(
+        "--sqlite", action="store_true", help="Use SQLite instead of PostgreSQL"
+    )
+    parser.add_argument(
+        "--process_bibles", action="store_true", help="Process Bible files"
+    )
+    parser.add_argument(
+        "--process_commentaries", action="store_true", help="Process commentary files"
+    )
+    parser.add_argument(
+        "--create_aligned_dataset",
+        action="store_true",
+        help="Create verse-aligned dataset",
+    )
+    parser.add_argument(
+        "--generate_instruction_data",
+        action="store_true",
+        help="Generate instruction data",
+    )
+    parser.add_argument(
+        "--prepare_tokenized", action="store_true", help="Prepare tokenized datasets"
+    )
     parser.add_argument("--tokenizer_name", type=str, help="HuggingFace tokenizer name")
-    
+
     args = parser.parse_args()
-    
+
     # Set up logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("preprocessing.log")
-        ]
+        handlers=[logging.StreamHandler(), logging.FileHandler("preprocessing.log")],
     )
-    
+
     # Initialize preprocessor
     preprocessor = BiblicalTextPreprocessor(args.config, use_sqlite=args.sqlite)
-    
+
     # Process Bible files
     if args.process_bibles:
         config = preprocessor.config
         bibles = {}
-        
+
         for translation_config in config.get("bible_translations", []):
             translation = translation_config["name"]
             file_path = os.path.join(preprocessor.raw_dir, translation_config["file"])
-            
+
             logger.info(f"Processing Bible file for {translation}: {file_path}")
             bible_data = preprocessor.process_bible_file(file_path, translation)
             bibles[translation] = bible_data
-            
+
             # Save to database
             preprocessor.save_processed_bible_to_db(bible_data, translation)
-    
+
     # Process commentary files
     if args.process_commentaries:
         config = preprocessor.config
         commentaries = {}
-        
+
         for commentary_config in config.get("commentaries", []):
             source = commentary_config["name"]
             file_path = os.path.join(preprocessor.raw_dir, commentary_config["file"])
-            
+
             logger.info(f"Processing commentary file for {source}: {file_path}")
             entries = preprocessor.process_commentary_file(file_path, source)
             commentaries[source] = entries
-            
+
             # Save processed commentaries
             preprocessor.save_processed_commentaries(entries, source)
-    
+
     # Create verse-aligned dataset
     if args.create_aligned_dataset:
         # Load processed Bible data from database
         bibles = {}
         commentaries = {}
-        
+
         # TODO: Implement loading from database
-        
+
         # Create verse-aligned dataset
-        verse_aligned_df = preprocessor.create_verse_aligned_dataset(bibles, commentaries)
-        
+        verse_aligned_df = preprocessor.create_verse_aligned_dataset(
+            bibles, commentaries
+        )
+
         # Clean and normalize the dataset
         verse_aligned_df = clean_and_normalize_dataset(verse_aligned_df)
-    
+
     # Generate instruction data
     if args.generate_instruction_data:
-        verse_aligned_path = os.path.join(preprocessor.processed_dir, "verse_aligned_dataset.csv")
+        verse_aligned_path = os.path.join(
+            preprocessor.processed_dir, "verse_aligned_dataset.csv"
+        )
         verse_aligned_df = pd.read_csv(verse_aligned_path)
-        
+
         instruction_data = preprocessor.generate_instruction_data(verse_aligned_df)
-        
+
         # Validate the generated instruction data
-        instruction_data_path = os.path.join(preprocessor.processed_dir, "instruction_data.json")
+        instruction_data_path = os.path.join(
+            preprocessor.processed_dir, "instruction_data.json"
+        )
         validate_instruction_data(instruction_data_path)
-    
+
     # Prepare tokenized datasets
     if args.prepare_tokenized and args.tokenizer_name:
         from transformers import AutoTokenizer
-        
+
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
-        instruction_data_path = os.path.join(preprocessor.processed_dir, "instruction_data.json")
+        instruction_data_path = os.path.join(
+            preprocessor.processed_dir, "instruction_data.json"
+        )
         output_dir = os.path.join(preprocessor.processed_dir, "tokenized")
-        
+
         prepare_tokenized_datasets(
             instruction_data_path=instruction_data_path,
             tokenizer=tokenizer,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
-        
+
         logger.info("Preprocessing completed successfully!")

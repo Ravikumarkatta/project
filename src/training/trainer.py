@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from typing import Tuple, Optional, Dict, Any
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 from torch.cuda.amp import GradScaler, autocast
@@ -317,6 +317,7 @@ class Trainer:
 
 if __name__ == "__main__":
     import argparse
+
     from transformers import AutoTokenizer
 
     parser = argparse.ArgumentParser(description="Train a BiblicalTransformer model")

@@ -6,24 +6,24 @@ import OriginalWordHighlight from './OriginalWordHighlight';
 
 const VerseDisplay = ({ text, reference, version, onWordSelect }) => {
   const { fontSize } = useSelector((state) => state.user.preferences);
-  
+
   // This would normally require a more complex parsing of the text
   // with original language data from the backend
   const renderText = () => {
     if (!text) return null;
-    
+
     // For demo purposes, this is simplified
     return text.map((verse, index) => (
       <div key={`${reference}-${index}`} className="verse">
         <span className="verse-number">{verse.verseNumber}</span>
-        <span 
+        <span
           className={`verse-text font-size-${fontSize}`}
-          dangerouslySetInnerHTML={{ 
+          dangerouslySetInnerHTML={{
             __html: verse.content.replace(
-              /\[(\w+):(\w+)\]/g, 
+              /\[(\w+):(\w+)\]/g,
               (_, word, lang) => `<span class="original-word" data-word="${word}" data-lang="${lang}">${word}</span>`
             )
-          }} 
+          }}
           onClick={(e) => {
             const target = e.target;
             if (target.classList.contains('original-word')) {

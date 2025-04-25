@@ -76,7 +76,7 @@ Variations:
 
 At-rule interfaces with descriptors.
 
-**TypeScript**: These will be found in the `AtRule` namespace, e.g. `AtRule.Viewport`.  
+**TypeScript**: These will be found in the `AtRule` namespace, e.g. `AtRule.Viewport`.
 **Flow**: These will be prefixed with `AtRule$`, e.g. `AtRule$Viewport`.
 
 |                      | Default        | `Hyphen`             | `Fallback`             | `HyphenFallback`             |
@@ -212,7 +212,7 @@ _If you're using CSS Custom Properties you can step directly to step 3._
 
           // Allow namespaced CSS Custom Properties
           [index: `--theme-${string}`]: any;
-          
+
           // Allow any CSS Custom Properties
           [index: `--${string}`]: any;
 
@@ -250,19 +250,19 @@ _If you're using CSS Custom Properties you can step directly to step 3._
 
 ## Version 3.0
 
-- **All property types are exposed with namespace**  
-  TypeScript: `Property.AlignContent` (was `AlignContentProperty` before)  
+- **All property types are exposed with namespace**
+  TypeScript: `Property.AlignContent` (was `AlignContentProperty` before)
   Flow: `Property$AlignContent`
-- **All at-rules are exposed with namespace**  
-  TypeScript: `AtRule.FontFace` (was `FontFace` before)  
+- **All at-rules are exposed with namespace**
+  TypeScript: `AtRule.FontFace` (was `FontFace` before)
   Flow: `AtRule$FontFace`
-- **Data types are NOT exposed**  
+- **Data types are NOT exposed**
   E.g. `Color` and `Box`. Because the generation of data types may suddenly be removed or renamed.
-- **TypeScript hack for autocompletion**  
+- **TypeScript hack for autocompletion**
   Uses `(string & {})` for literal string unions and `(number & {})` for literal number unions ([related issue](https://github.com/microsoft/TypeScript/issues/29729)). Utilize `PropertyValue<T>` to unpack types from e.g. `(string & {})` to `string`.
-- **New generic for time**  
+- **New generic for time**
   Read more on the ["Generics"](#generics) section.
-- **Flow types improvements**  
+- **Flow types improvements**
   Flow Strict enabled and exact types are used.
 
 ## Contributing

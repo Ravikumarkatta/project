@@ -7,9 +7,10 @@ Handles different translations and provides context.
 import json
 import os
 import re
+
 # 3.1, 3.2: Import Path and Optional
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Assuming VerseReference is defined elsewhere, e.g., in bible_manager
 # If not, define a placeholder or import correctly
@@ -23,24 +24,27 @@ except ImportError:
             self.chapter = 0
             self.start_verse = 0
             self.end_verse = None
-            if ref_string: # Basic parsing for placeholder
-                 parts = ref_string.split()
-                 if parts: self.book = parts[0]
-                 if len(parts) > 1 and ':' in parts[-1]:
-                     try:
-                         chap, verse = parts[-1].split(':')
-                         self.chapter = int(chap)
-                         if '-' in verse:
-                             sv, ev = verse.split('-')
-                             self.start_verse = int(sv)
-                             self.end_verse = int(ev)
-                         else:
-                             self.start_verse = int(verse)
-                     except ValueError:
-                         pass # Ignore parsing errors for placeholder
+            if ref_string:  # Basic parsing for placeholder
+                parts = ref_string.split()
+                if parts:
+                    self.book = parts[0]
+                if len(parts) > 1 and ":" in parts[-1]:
+                    try:
+                        chap, verse = parts[-1].split(":")
+                        self.chapter = int(chap)
+                        if "-" in verse:
+                            sv, ev = verse.split("-")
+                            self.start_verse = int(sv)
+                            self.end_verse = int(ev)
+                        else:
+                            self.start_verse = int(verse)
+                    except ValueError:
+                        pass  # Ignore parsing errors for placeholder
+
 
 # Assuming logger setup is handled elsewhere
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +53,9 @@ class VerseResolver:
     Resolves Bible verse references to their text content for various translations.
     """
 
-    def __init__(self, config_path: Optional[str] = "config/resolver_config.json") -> None:
+    def __init__(
+        self, config_path: Optional[str] = "config/resolver_config.json"
+    ) -> None:
         """
         Initializes the VerseResolver.
 
@@ -58,7 +64,9 @@ class VerseResolver:
         """
         self.config: Dict[str, Any] = self._load_config(config_path)
         self.bible_data: Dict[str, Dict[str, Any]] = self._load_bible_data()
-        self.default_translation: str = self.config.get("default_translation", "KJV") # Default to KJV if not specified
+        self.default_translation: str = self.config.get(
+            "default_translation", "KJV"
+        )  # Default to KJV if not specified
 
     # 3.3: Correct return type hint
     def _load_config(self, config_path_str: Optional[str]) -> Dict[str, Any]:
@@ -94,27 +102,29 @@ class VerseResolver:
         data_dir = Path(self.config.get("data_directory", "data/processed/bibles"))
         bible_data: Dict[str, Dict[str, Any]] = {}
         if not data_dir.exists() or not data_dir.is_dir():
-            logger.error(f"Bible data directory not found or not a directory: {data_dir}")
+            logger.error(
+                f"Bible data directory not found or not a directory: {data_dir}"
+            )
             return bible_data
 
         logger.info(f"Loading Bible data from: {data_dir}")
         for file_path in data_dir.glob("*.json"):
             try:
-                translation_id = file_path.stem # Use filename without extension as ID
+                translation_id = file_path.stem  # Use filename without extension as ID
                 with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     # Basic validation: check if it looks like Bible data (e.g., has books)
                     if isinstance(data, dict) and len(data) > 0:
-                         # Assume data structure is {book: {chapter: {verse: text}}}
-                         bible_data[translation_id.upper()] = data
-                         logger.info(f"Loaded translation: {translation_id.upper()}")
+                        # Assume data structure is {book: {chapter: {verse: text}}}
+                        bible_data[translation_id.upper()] = data
+                        logger.info(f"Loaded translation: {translation_id.upper()}")
                     else:
-                         logger.warning(f"Skipping invalid data file: {file_path}")
+                        logger.warning(f"Skipping invalid data file: {file_path}")
             except (json.JSONDecodeError, IOError, Exception) as e:
                 logger.error(f"Error loading Bible data from {file_path}: {e}")
 
         if not bible_data:
-             logger.warning(f"No valid Bible data loaded from {data_dir}.")
+            logger.warning(f"No valid Bible data loaded from {data_dir}.")
 
         return bible_data
 
@@ -151,28 +161,30 @@ class VerseResolver:
 
         # 3.4: Guard against None before calling VerseReference constructor
         if reference_str is None:
-             logger.error("Verse reference string cannot be None.")
-             return None
+            logger.error("Verse reference string cannot be None.")
+            return None
 
         try:
             # 3.4: Call constructor only with valid string
             vr = VerseReference(reference_str)
-        except Exception as e: # Catch potential errors during VerseReference parsing
+        except Exception as e:  # Catch potential errors during VerseReference parsing
             logger.error(f"Failed to parse verse reference '{reference_str}': {e}")
             return None
 
         # Check if parsing was successful (basic check for placeholder)
         if vr.book == "Unknown" or vr.chapter == 0 or vr.start_verse == 0:
-             logger.warning(f"Could not fully parse verse reference: {reference_str}")
-             # Decide if partial parsing is acceptable or return None
-             # return None # Stricter approach
+            logger.warning(f"Could not fully parse verse reference: {reference_str}")
+            # Decide if partial parsing is acceptable or return None
+            # return None # Stricter approach
 
         book_data = self.bible_data[trans_id].get(vr.book)
         if not book_data:
             logger.error(f"Book '{vr.book}' not found in translation '{trans_id}'.")
             return None
 
-        chapter_data = book_data.get(str(vr.chapter)) # Chapters are often stored as string keys
+        chapter_data = book_data.get(
+            str(vr.chapter)
+        )  # Chapters are often stored as string keys
         if not chapter_data:
             logger.error(
                 f"Chapter '{vr.chapter}' not found for book '{vr.book}' in translation '{trans_id}'."
@@ -190,7 +202,9 @@ class VerseResolver:
 
         # Collect requested verses
         for v_num in range(start, end + 1):
-            verse_text = chapter_data.get(str(v_num)) # Verses often stored as string keys
+            verse_text = chapter_data.get(
+                str(v_num)
+            )  # Verses often stored as string keys
             if verse_text:
                 resolved_verses[v_num] = verse_text
             else:
@@ -201,18 +215,21 @@ class VerseResolver:
                 # return None # Stricter approach if any verse in range is missing
 
         if not resolved_verses:
-             logger.error(f"Could not resolve any verses for {reference_str} in '{trans_id}'.")
-             return None # Return None if the primary verse(s) couldn't be found
+            logger.error(
+                f"Could not resolve any verses for {reference_str} in '{trans_id}'."
+            )
+            return None  # Return None if the primary verse(s) couldn't be found
 
         # Collect context before
         for i in range(1, context_range + 1):
             v_num = start - i
-            if v_num <= 0: break # Stop if we go before verse 1
+            if v_num <= 0:
+                break  # Stop if we go before verse 1
             verse_text = chapter_data.get(str(v_num))
             if verse_text:
                 context_before[v_num] = verse_text
             else:
-                break # Stop context if a verse is missing
+                break  # Stop context if a verse is missing
 
         # Collect context after
         for i in range(1, context_range + 1):
@@ -221,7 +238,7 @@ class VerseResolver:
             if verse_text:
                 context_after[v_num] = verse_text
             else:
-                break # Stop context if verse doesn't exist
+                break  # Stop context if verse doesn't exist
 
         return {
             "reference": reference_str,
@@ -233,27 +250,30 @@ class VerseResolver:
         }
 
     # 3.3: Add specific return type hint
-    def get_verse_text(self, reference_str: str, translation: Optional[str] = None) -> Optional[str]:
-         """
-         Convenience method to get only the text of the specified verse(s).
+    def get_verse_text(
+        self, reference_str: str, translation: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Convenience method to get only the text of the specified verse(s).
 
-         Args:
-             reference_str: The verse reference string.
-             translation: The translation ID.
+        Args:
+            reference_str: The verse reference string.
+            translation: The translation ID.
 
-         Returns:
-             The combined text of the resolved verses, or None if resolution fails.
-         """
-         resolved_data = self.resolve(reference_str, translation)
-         if resolved_data and resolved_data.get("verses"):
-             # Join verses, sorted by number, with a space
-             verse_texts = [
-                 resolved_data["verses"][v_num]
-                 for v_num in sorted(resolved_data["verses"])
-             ]
-             # 3.3: Ensure return matches hint (joining strings results in a string)
-             return " ".join(verse_texts)
-         return None
+        Returns:
+            The combined text of the resolved verses, or None if resolution fails.
+        """
+        resolved_data = self.resolve(reference_str, translation)
+        if resolved_data and resolved_data.get("verses"):
+            # Join verses, sorted by number, with a space
+            verse_texts = [
+                resolved_data["verses"][v_num]
+                for v_num in sorted(resolved_data["verses"])
+            ]
+            # 3.3: Ensure return matches hint (joining strings results in a string)
+            return " ".join(verse_texts)
+        return None
+
 
 import json
 import logging

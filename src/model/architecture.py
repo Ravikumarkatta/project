@@ -1,5 +1,5 @@
 # src/model/architecture.py
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -9,10 +9,11 @@ from transformers import PreTrainedTokenizer
 
 from src.model.attention import MultiHeadAttention
 from src.model.verse_detector import VerseDetector
+
 # Fix import errors by updating to the correct module attribute names
 # Assuming these are actually defined in the module with these names:
-from src.model.verse_embeddings import embeddings as TokenEmbeddings
 from src.model.verse_embeddings import PositionalEncoding
+from src.model.verse_embeddings import embeddings as TokenEmbeddings
 from src.theology.validator import TheologicalValidator
 
 
@@ -74,7 +75,7 @@ class BiblicalTransformerLayer(nn.Module):
                 "God",
                 "Jesus",
                 "Holy Spirit",
-                "jesus christ", 
+                "jesus christ",
                 "messiah",
                 "christ",
             ],

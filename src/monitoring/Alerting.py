@@ -39,10 +39,10 @@ class AlertingSystem:
         self.smtp_config = smtp_config or {}
         self.slack_webhook = slack_webhook
         self.thresholds = thresholds or {
-            "inference_latency": 2.0,    # Alert if average latency > 2 seconds
-            "validation_score": 0.9,     # Alert if score < 0.9
-            "cpu_usage": 80.0,           # Alert if CPU usage > 80%
-            "memory_usage": 5000.0,      # Alert if memory usage > 5000 MB
+            "inference_latency": 2.0,  # Alert if average latency > 2 seconds
+            "validation_score": 0.9,  # Alert if score < 0.9
+            "cpu_usage": 80.0,  # Alert if CPU usage > 80%
+            "memory_usage": 5000.0,  # Alert if memory usage > 5000 MB
         }
         self.alert_cooldown = 300  # 5 minutes cooldown between alerts
         self.last_alerted: Dict[str, float] = {}
@@ -55,7 +55,9 @@ class AlertingSystem:
             Dictionary of current metric values.
         """
         try:
-            response = requests.get(f"http://localhost:{self.metrics_port}/metrics", timeout=5)
+            response = requests.get(
+                f"http://localhost:{self.metrics_port}/metrics", timeout=5
+            )
             response.raise_for_status()
             lines = response.text.splitlines()
             metrics = {}
@@ -142,10 +144,30 @@ class AlertingSystem:
         avg_latency = latency_sum / max(1.0, latency_count)
 
         checks = [
-            ("inference_latency", avg_latency, self.thresholds["inference_latency"], "gt"),
-            ("validation_score", metrics.get("bibleai_theological_validation_score", 1.0), self.thresholds["validation_score"], "lt"),
-            ("cpu_usage", metrics.get("bibleai_cpu_usage_percent", 0.0), self.thresholds["cpu_usage"], "gt"),
-            ("memory_usage", metrics.get("bibleai_memory_usage_mb", 0.0), self.thresholds["memory_usage"], "gt"),
+            (
+                "inference_latency",
+                avg_latency,
+                self.thresholds["inference_latency"],
+                "gt",
+            ),
+            (
+                "validation_score",
+                metrics.get("bibleai_theological_validation_score", 1.0),
+                self.thresholds["validation_score"],
+                "lt",
+            ),
+            (
+                "cpu_usage",
+                metrics.get("bibleai_cpu_usage_percent", 0.0),
+                self.thresholds["cpu_usage"],
+                "gt",
+            ),
+            (
+                "memory_usage",
+                metrics.get("bibleai_memory_usage_mb", 0.0),
+                self.thresholds["memory_usage"],
+                "gt",
+            ),
         ]
 
         for metric_name, value, threshold, comparison in checks:

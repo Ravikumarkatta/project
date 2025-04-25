@@ -157,7 +157,7 @@ bible-ai/
 │   ├── security_scan.py         # Run security checks (NEW)
 │   ├── data_migration.py        # Data migration between versions (NEW)
 |   └── verify_biblical_data.py
-│   
+│
 ├── tests/                       # Backend test suite
 │   ├── __init__.py
 │   ├── conftest.py              # Shared test fixtures

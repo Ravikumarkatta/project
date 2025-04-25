@@ -15,4 +15,3 @@ Checklist
 Screenshots (if applicable)
 
 Additional Notes
-

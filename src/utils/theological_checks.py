@@ -11,7 +11,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, TypedDict, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict, Union, cast
 
 # Try to import the logger we just created
 try:
@@ -192,7 +192,9 @@ class TheologicalChecker:
 
         return results
 
-    def _get_applicable_rules(self, denomination: Optional[str] = None) -> Dict[str, Any]:
+    def _get_applicable_rules(
+        self, denomination: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get rules applicable to the specified denomination or general rules.
 
@@ -214,7 +216,9 @@ class TheologicalChecker:
 
         return applicable_rules
 
-    def _apply_rule(self, content: str, rule: Dict[str, Any], rule_name: str) -> Dict[str, Any]:
+    def _apply_rule(
+        self, content: str, rule: Dict[str, Any], rule_name: str
+    ) -> Dict[str, Any]:
         """
         Apply a single theological rule to content.
 
@@ -458,7 +462,11 @@ class TheologicalChecker:
         Returns:
             Dictionary with check results
         """
-        results: Dict[str, Any] = {"passed": True, "denomination": denomination, "warnings": []}
+        results: Dict[str, Any] = {
+            "passed": True,
+            "denomination": denomination,
+            "warnings": [],
+        }
 
         # Get denominational positions
         if denomination not in self.denominational_positions:

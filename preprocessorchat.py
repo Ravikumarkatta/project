@@ -23,14 +23,14 @@ Options:
     --verbose                  Enable verbose logging
 """
 
-import re
-import os
-import json
-import csv
-import sys
 import argparse
+import csv
+import json
 import logging
-from typing import Dict, List, Tuple, Optional, Set, Union, Any
+import os
+import re
+import sys
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 # Constants
 BIBLE_BOOKS = {
@@ -74,7 +74,6 @@ BIBLE_BOOKS = {
     "Haggai": {"testament": "old", "abbrev": "Hag"},
     "Zechariah": {"testament": "old", "abbrev": "Zech"},
     "Malachi": {"testament": "old", "abbrev": "Mal"},
-    
     # New Testament - 27 books
     "Matthew": {"testament": "new", "abbrev": "Matt"},
     "Mark": {"testament": "new", "abbrev": "Mark"},
@@ -103,7 +102,6 @@ BIBLE_BOOKS = {
     "3 John": {"testament": "new", "abbrev": "3John"},
     "Jude": {"testament": "new", "abbrev": "Jude"},
     "Revelation": {"testament": "new", "abbrev": "Rev"},
-    
     # Apocrypha - (if included)
     "Tobit": {"testament": "apocrypha", "abbrev": "Tob"},
     "Judith": {"testament": "apocrypha", "abbrev": "Jdt"},
@@ -158,6 +156,7 @@ BOOK_ALIASES = {
     "Fifth Book of Moses": "Deuteronomy",
 }
 
+
 # Statistics structure
 class BibleStatistics:
     def __init__(self):
@@ -201,8 +200,11 @@ class BibleStatistics:
             "total_verses": self.total_verses,
             "chapters_per_book": self.chapters_per_book,
             "malformed_verses_count": len(self.malformed_verses),
-            "malformed_verses": self.malformed_verses[:10] if self.malformed_verses else []
+            "malformed_verses": self.malformed_verses[:10]
+            if self.malformed_verses
+            else [],
         }
+
 
 class BibleProcessor:
     def __init__(self, include_apocrypha: bool = False, fix_line_breaks: bool = False):
@@ -215,14 +217,18 @@ class BibleProcessor:
 
     def setup_logging(self, verbose: bool) -> None:
         level = logging.DEBUG if verbose else logging.INFO
-        logging.basicConfig(level=level, format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
 
     def remove_gutenberg_wrappers(self, text: str) -> str:
         start_markers = [
             "*** START OF THE PROJECT GUTENBERG EBOOK",
             "*** START OF THIS PROJECT GUTENBERG EBOOK",
             "***START OF THE PROJECT GUTENBERG EBOOK",
-            "*END*THE SMALL PRINT"
+            "*END*THE SMALL PRINT",
         ]
         start_index = -1
         for marker in start_markers:
@@ -231,13 +237,15 @@ class BibleProcessor:
                 if start_index == -1 or pos < start_index:
                     start_index = pos
         if start_index != -1:
-            next_line_break = text.find('\n', start_index)
+            next_line_break = text.find("\n", start_index)
             if next_line_break != -1:
-                text = text[next_line_break + 1:]
+                text = text[next_line_break + 1 :]
                 logging.debug("Gutenberg start marker found and removed.")
             else:
                 text = text[start_index:]
-                logging.debug("Gutenberg start marker found but no line break after it.")
+                logging.debug(
+                    "Gutenberg start marker found but no line break after it."
+                )
         else:
             logging.warning("No Gutenberg start marker found.")
 
@@ -245,7 +253,7 @@ class BibleProcessor:
             "*** END OF THE PROJECT GUTENBERG",
             "*** END OF THIS PROJECT GUTENBERG",
             "***END OF THE PROJECT GUTENBERG",
-            "End of the Project Gutenberg"
+            "End of the Project Gutenberg",
         ]
         end_index = -1
         for marker in end_markers:
@@ -266,14 +274,20 @@ class BibleProcessor:
             return name
         if name in BOOK_ALIASES:
             return BOOK_ALIASES[name]
-        numbered_book_pattern = re.compile(r'^(\d+)\s*(\w+)$')
+        numbered_book_pattern = re.compile(r"^(\d+)\s*(\w+)$")
         match = numbered_book_pattern.match(name)
         if match:
             number, book = match.groups()
             number_word = {
-                "1": "1", "2": "2", "3": "3",
-                "I": "1", "II": "2", "III": "3",
-                "First": "1", "Second": "2", "Third": "3"
+                "1": "1",
+                "2": "2",
+                "3": "3",
+                "I": "1",
+                "II": "2",
+                "III": "3",
+                "First": "1",
+                "Second": "2",
+                "Third": "3",
             }.get(number)
             if number_word and f"{number_word} {book}" in BIBLE_BOOKS:
                 return f"{number_word} {book}"
@@ -286,11 +300,7 @@ class BibleProcessor:
         return None
 
     def identify_verse_reference(self, line: str) -> Optional[Tuple[int, int, str]]:
-        patterns = [
-            r'^(\d+):(\d+)\s+(.+)$',
-            r'^(\d+)\s+(.+)$',
-            r'^\[(\d+)\]\s+(.+)$'
-        ]
+        patterns = [r"^(\d+):(\d+)\s+(.+)$", r"^(\d+)\s+(.+)$", r"^\[(\d+)\]\s+(.+)$"]
         for pattern in patterns:
             match = re.match(pattern, line.strip())
             if match:
@@ -301,7 +311,9 @@ class BibleProcessor:
                         verse = int(groups[1])
                         return chapter, verse, groups[2]
                     except ValueError:
-                        self.stats.add_malformed_verse(line, "Invalid chapter/verse numbers")
+                        self.stats.add_malformed_verse(
+                            line, "Invalid chapter/verse numbers"
+                        )
                         return None
                 elif len(groups) == 2:
                     if self.current_chapter is not None:
@@ -312,20 +324,24 @@ class BibleProcessor:
                             self.stats.add_malformed_verse(line, "Invalid verse number")
                             return None
                     else:
-                        self.stats.add_malformed_verse(line, "No current chapter established")
+                        self.stats.add_malformed_verse(
+                            line, "No current chapter established"
+                        )
                         return None
         return None
 
-    def identify_book_and_chapter_headers(self, line: str) -> Tuple[Optional[str], Optional[int]]:
-        book_marker_match = re.match(r'^BOOK:\s*(.+)$', line.strip())
+    def identify_book_and_chapter_headers(
+        self, line: str
+    ) -> Tuple[Optional[str], Optional[int]]:
+        book_marker_match = re.match(r"^BOOK:\s*(.+)$", line.strip())
         if book_marker_match:
             book_name = self.normalize_book_name(book_marker_match.group(1))
             if book_name:
                 return book_name, None
         book_title_patterns = [
-            r'^(?:The\s+)?(?:Book\s+of\s+)?([A-Za-z\s1-3]+?)(?::\s*Called\s+.+)?$',
-            r'^([A-Za-z\s1-3]+)\s+Chapter\s+(\d+)$',
-            r'^THE\s+([A-Za-z\s1-3]+)$'
+            r"^(?:The\s+)?(?:Book\s+of\s+)?([A-Za-z\s1-3]+?)(?::\s*Called\s+.+)?$",
+            r"^([A-Za-z\s1-3]+)\s+Chapter\s+(\d+)$",
+            r"^THE\s+([A-Za-z\s1-3]+)$",
         ]
         for pattern in book_title_patterns:
             match = re.match(pattern, line.strip())
@@ -343,9 +359,9 @@ class BibleProcessor:
                                 return normalized_book, None
                         return normalized_book, None
         chapter_patterns = [
-            r'^Chapter\s+(\d+)$',
-            r'^CHAPTER\s+(\d+)$',
-            r'^\s*(\d+)\s*$'
+            r"^Chapter\s+(\d+)$",
+            r"^CHAPTER\s+(\d+)$",
+            r"^\s*(\d+)\s*$",
         ]
         for pattern in chapter_patterns:
             match = re.match(pattern, line.strip())
@@ -370,11 +386,15 @@ class BibleProcessor:
                 continue
             book_name, chapter_num = self.identify_book_and_chapter_headers(line)
             if book_name:
-                if book_name in BIBLE_BOOKS and (self.include_apocrypha or 
-                                                 BIBLE_BOOKS[book_name]["testament"] != "apocrypha"):
+                if book_name in BIBLE_BOOKS and (
+                    self.include_apocrypha
+                    or BIBLE_BOOKS[book_name]["testament"] != "apocrypha"
+                ):
                     result_lines.append(f"BOOK: {book_name}")
                     processed_line_count += 1
-                    logging.debug(f"Standardized book title: {original_line} -> BOOK: {book_name}")
+                    logging.debug(
+                        f"Standardized book title: {original_line} -> BOOK: {book_name}"
+                    )
                 else:
                     logging.debug(f"Skipping apocryphal or unknown book: {book_name}")
                 if chapter_num:
@@ -383,7 +403,9 @@ class BibleProcessor:
             elif chapter_num:
                 result_lines.append(f"CHAPTER: {chapter_num}")
                 processed_line_count += 1
-                logging.debug(f"Standardized chapter header: {original_line} -> CHAPTER: {chapter_num}")
+                logging.debug(
+                    f"Standardized chapter header: {original_line} -> CHAPTER: {chapter_num}"
+                )
             else:
                 # Fallback: if the line is short (under 40 chars) and contains a known book name
                 if len(original_line.strip()) < 40:
@@ -392,7 +414,9 @@ class BibleProcessor:
                         if book.lower() in lower_line:
                             result_lines.append(f"BOOK: {book}")
                             processed_line_count += 1
-                            logging.debug(f"Fallback standardized '{original_line}' to BOOK: {book}")
+                            logging.debug(
+                                f"Fallback standardized '{original_line}' to BOOK: {book}"
+                            )
                             break
                     else:
                         result_lines.append(original_line)
@@ -449,73 +473,117 @@ class BibleProcessor:
                     if self.current_book in self.parsed_bible:
                         if chapter_num not in self.parsed_bible[self.current_book]:
                             self.parsed_bible[self.current_book][chapter_num] = {}
-                        self.parsed_bible[self.current_book][chapter_num][verse_num] = verse_text
+                        self.parsed_bible[self.current_book][chapter_num][
+                            verse_num
+                        ] = verse_text
                 continue
-            if self.fix_line_breaks and i > 0 and not line.startswith("BOOK:") and not line.startswith("CHAPTER:"):
-                prev_line = lines[i-1].strip()
-                if (prev_line and not re.match(r'^\d+:\d+', line) and 
-                    (re.match(r'^\d+:\d+', prev_line) or (result_lines and re.match(r'^\d+:\d+', result_lines[-1])))):
+            if (
+                self.fix_line_breaks
+                and i > 0
+                and not line.startswith("BOOK:")
+                and not line.startswith("CHAPTER:")
+            ):
+                prev_line = lines[i - 1].strip()
+                if (
+                    prev_line
+                    and not re.match(r"^\d+:\d+", line)
+                    and (
+                        re.match(r"^\d+:\d+", prev_line)
+                        or (result_lines and re.match(r"^\d+:\d+", result_lines[-1]))
+                    )
+                ):
                     result_lines[-1] += " " + line
                     logging.debug(f"Joined broken verse line: {line}")
                     continue
             result_lines.append(line)
-        verse_count = sum(1 for line in result_lines if re.match(r'^\d+:\d+', line.strip()))
+        verse_count = sum(
+            1 for line in result_lines if re.match(r"^\d+:\d+", line.strip())
+        )
         logging.info(f"Processed {verse_count} verses")
         return "\n".join(result_lines)
 
     def validate_bible_structure(self) -> Dict[str, Any]:
-        expected_book_count = len([b for b in BIBLE_BOOKS if self.include_apocrypha or 
-                                     BIBLE_BOOKS[b]["testament"] != "apocrypha"])
+        expected_book_count = len(
+            [
+                b
+                for b in BIBLE_BOOKS
+                if self.include_apocrypha or BIBLE_BOOKS[b]["testament"] != "apocrypha"
+            ]
+        )
         report = {
             "valid": True,
             "warnings": [],
             "errors": [],
-            "statistics": self.stats.generate_report()
+            "statistics": self.stats.generate_report(),
         }
         books_found = len(self.stats.books_found)
         if books_found < expected_book_count:
-            missing = [b for b in BIBLE_BOOKS if b not in self.stats.books_found and
-                       (self.include_apocrypha or BIBLE_BOOKS[b]["testament"] != "apocrypha")]
-            report["warnings"].append(f"Found {books_found} books out of {expected_book_count} expected")
+            missing = [
+                b
+                for b in BIBLE_BOOKS
+                if b not in self.stats.books_found
+                and (
+                    self.include_apocrypha or BIBLE_BOOKS[b]["testament"] != "apocrypha"
+                )
+            ]
+            report["warnings"].append(
+                f"Found {books_found} books out of {expected_book_count} expected"
+            )
             report["warnings"].append(f"Missing books: {', '.join(missing[:5])}")
             if len(missing) > 5:
                 report["warnings"].append(f"... and {len(missing) - 5} more")
         if self.stats.total_verses < 30000:
-            report["warnings"].append(f"Low verse count: {self.stats.total_verses} (expected ~31,000)")
+            report["warnings"].append(
+                f"Low verse count: {self.stats.total_verses} (expected ~31,000)"
+            )
             report["valid"] = False
         if self.stats.malformed_verses:
-            report["warnings"].append(f"Found {len(self.stats.malformed_verses)} malformed verses")
+            report["warnings"].append(
+                f"Found {len(self.stats.malformed_verses)} malformed verses"
+            )
         return report
 
     def write_output(self, text: str, output_file: str, output_format: str) -> None:
         if output_format == "text":
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(text)
         elif output_format == "json":
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(self.parsed_bible, f, ensure_ascii=False, indent=2)
         elif output_format == "csv":
-            with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+            with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["Book", "Chapter", "Verse", "Text"])
                 for book in sorted(self.parsed_bible.keys()):
                     for chapter in sorted(self.parsed_bible[book].keys()):
                         for verse in sorted(self.parsed_bible[book][chapter].keys()):
-                            writer.writerow([book, chapter, verse, self.parsed_bible[book][chapter][verse]])
+                            writer.writerow(
+                                [
+                                    book,
+                                    chapter,
+                                    verse,
+                                    self.parsed_bible[book][chapter][verse],
+                                ]
+                            )
         else:
             logging.error(f"Unsupported output format: {output_format}")
             sys.exit(1)
         logging.info(f"Output written to {output_file} in {output_format} format.")
 
-    def process_bible_text(self, input_file: str, output_file: str, output_format: str = "text",
-                           validate: bool = False) -> Dict[str, Any]:
+    def process_bible_text(
+        self,
+        input_file: str,
+        output_file: str,
+        output_format: str = "text",
+        validate: bool = False,
+    ) -> Dict[str, Any]:
         logging.info(f"Reading input file: {input_file}")
         try:
-            with open(input_file, 'r', encoding='utf-8') as f:
+            with open(input_file, "r", encoding="utf-8") as f:
                 text = f.read()
         except UnicodeDecodeError:
             logging.warning("UTF-8 decoding failed, trying latin-1 encoding")
-            with open(input_file, 'r', encoding='latin-1') as f:
+            with open(input_file, "r", encoding="latin-1") as f:
                 text = f.read()
         text = self.remove_gutenberg_wrappers(text)
         text = self.standardize_book_titles(text)
@@ -524,15 +592,20 @@ class BibleProcessor:
         validation_report = None
         if validate:
             validation_report = self.validate_bible_structure()
-            log_level = logging.WARNING if validation_report["warnings"] else logging.INFO
-            logging.log(log_level, f"Validation complete: {len(validation_report['warnings'])} warnings")
+            log_level = (
+                logging.WARNING if validation_report["warnings"] else logging.INFO
+            )
+            logging.log(
+                log_level,
+                f"Validation complete: {len(validation_report['warnings'])} warnings",
+            )
         return {
             "input_file": input_file,
             "output_file": output_file,
             "format": output_format,
             "verses_processed": self.stats.total_verses,
             "books_processed": len(self.stats.books_found),
-            "validation": validation_report
+            "validation": validation_report,
         }
 
     def format_parsed_bible_as_text(self) -> str:
@@ -542,29 +615,53 @@ class BibleProcessor:
             for chapter in sorted(self.parsed_bible[book].keys()):
                 lines.append(f"CHAPTER: {chapter}")
                 for verse in sorted(self.parsed_bible[book][chapter].keys()):
-                    lines.append(f"{chapter}:{verse} {self.parsed_bible[book][chapter][verse]}")
+                    lines.append(
+                        f"{chapter}:{verse} {self.parsed_bible[book][chapter][verse]}"
+                    )
         return "\n".join(lines)
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Robust KJV Bible Text Preprocessor"
+    parser = argparse.ArgumentParser(description="Robust KJV Bible Text Preprocessor")
+    parser.add_argument(
+        "--input", required=True, help="Path to the raw Gutenberg KJV text file."
     )
-    parser.add_argument("--input", required=True, help="Path to the raw Gutenberg KJV text file.")
-    parser.add_argument("--output", required=True, help="Path to save the preprocessed output.")
-    parser.add_argument("--format", choices=["text", "json", "csv"], default="text",
-                        help="Output format (default: text)")
-    parser.add_argument("--include-apocrypha", action="store_true", help="Include apocryphal books if present")
-    parser.add_argument("--fix-line-breaks", action="store_true", help="Attempt to fix irregular line breaks")
-    parser.add_argument("--validate", action="store_true", help="Validate the structure of the output")
+    parser.add_argument(
+        "--output", required=True, help="Path to save the preprocessed output."
+    )
+    parser.add_argument(
+        "--format",
+        choices=["text", "json", "csv"],
+        default="text",
+        help="Output format (default: text)",
+    )
+    parser.add_argument(
+        "--include-apocrypha",
+        action="store_true",
+        help="Include apocryphal books if present",
+    )
+    parser.add_argument(
+        "--fix-line-breaks",
+        action="store_true",
+        help="Attempt to fix irregular line breaks",
+    )
+    parser.add_argument(
+        "--validate", action="store_true", help="Validate the structure of the output"
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     args = parser.parse_args()
 
-    processor = BibleProcessor(include_apocrypha=args.include_apocrypha, fix_line_breaks=args.fix_line_breaks)
+    processor = BibleProcessor(
+        include_apocrypha=args.include_apocrypha, fix_line_breaks=args.fix_line_breaks
+    )
     processor.setup_logging(args.verbose)
-    report = processor.process_bible_text(args.input, args.output, output_format=args.format, validate=args.validate)
-    
+    report = processor.process_bible_text(
+        args.input, args.output, output_format=args.format, validate=args.validate
+    )
+
     logging.info("Processing complete. Report:")
     logging.info(json.dumps(report, indent=2))
+
 
 if __name__ == "__main__":
     main()

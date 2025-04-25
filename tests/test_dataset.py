@@ -139,7 +139,7 @@ def test_create_bible_dataloaders(temp_bible_file, tokenizer):
 
     # 4 verses / batch_size 2 = 2 batches
     assert len(train_loader) == 2
-    assert len(val_loader) == 2 # Also 2 batches for validation
+    assert len(val_loader) == 2  # Also 2 batches for validation
 
     # Check the shape of a batch
     batch = next(iter(train_loader))
@@ -148,8 +148,8 @@ def test_create_bible_dataloaders(temp_bible_file, tokenizer):
     assert "attention_mask" in batch
     assert batch["input_ids"].dim() == 2  # [batch_size, sequence_length]
     assert batch["attention_mask"].dim() == 2
-    assert batch["input_ids"].shape[0] == 2 # Check batch size
-    assert batch["attention_mask"].shape[0] == 2 # Check batch size
+    assert batch["input_ids"].shape[0] == 2  # Check batch size
+    assert batch["attention_mask"].shape[0] == 2  # Check batch size
 
 
 def test_create_instruction_dataloaders(temp_instruction_file, tokenizer):
@@ -164,7 +164,7 @@ def test_create_instruction_dataloaders(temp_instruction_file, tokenizer):
 
     # 2 instructions / batch_size 2 = 1 batch
     assert len(train_loader) == 1
-    assert len(val_loader) == 1 # Also 1 batch for validation
+    assert len(val_loader) == 1  # Also 1 batch for validation
 
     # Check the shape of a batch
     batch = next(iter(train_loader))
@@ -175,8 +175,6 @@ def test_create_instruction_dataloaders(temp_instruction_file, tokenizer):
     assert batch["input_ids"].dim() == 2  # [batch_size, sequence_length]
     assert batch["attention_mask"].dim() == 2
     assert batch["labels"].dim() == 2
-    assert batch["input_ids"].shape[0] == 2 # Check batch size
-    assert batch["attention_mask"].shape[0] == 2 # Check batch size
-    assert batch["labels"].shape[0] == 2 # Check batch size
-
-
+    assert batch["input_ids"].shape[0] == 2  # Check batch size
+    assert batch["attention_mask"].shape[0] == 2  # Check batch size
+    assert batch["labels"].shape[0] == 2  # Check batch size

@@ -11,18 +11,18 @@ const WordStudy = ({ word, language }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('definition');
-  
+
   const { currentVersion } = useSelector((state) => state.bible);
-  
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const wordStudyData = await getWordStudy(word, language);
         const concordanceData = await getWordConcordance(word, language);
-        
+
         setWordData(wordStudyData);
         setConcordance(concordanceData);
       } catch (err) {
@@ -31,21 +31,21 @@ const WordStudy = ({ word, language }) => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [word, language]);
-  
+
   if (loading) return <LoadingSpinner message="Loading word study..." />;
   if (error) return <ErrorAlert message={error} />;
   if (!wordData) return <ErrorAlert message="No data found for this word" />;
-  
+
   return (
     <div className="word-study">
       <div className="word-header">
         <h2>{wordData.transliteration} ({wordData.original})</h2>
         <div className="pronunciation">{wordData.pronunciation}</div>
       </div>
-      
+
       <div className="tabs">
         <button
           className={`tab ${activeTab === 'definition' ? 'active' : ''}`}
@@ -66,19 +66,19 @@ const WordStudy = ({ word, language }) => {
           Concordance
         </button>
       </div>
-      
+
       <div className="tab-content">
         {activeTab === 'definition' && (
           <div className="definition-content">
             <h3>Definition</h3>
             <p>{wordData.definition}</p>
-            
+
             <h4>Root</h4>
             <p>{wordData.root || 'N/A'}</p>
-            
+
             <h4>Parts of Speech</h4>
             <p>{wordData.partOfSpeech}</p>
-            
+
             {wordData.semanticDomain && (
               <>
                 <h4>Semantic Domain</h4>
@@ -87,19 +87,19 @@ const WordStudy = ({ word, language }) => {
             )}
           </div>
         )}
-        
+
         {activeTab === 'usage' && (
           <div className="usage-content">
             <h3>Biblical Usage</h3>
             <p>{wordData.biblicalUsage}</p>
-            
+
             <h4>Key Examples</h4>
-            <BibleReferences 
-              references={wordData.keyExamples} 
+            <BibleReferences
+              references={wordData.keyExamples}
               version={currentVersion}
               showPreview={true}
             />
-            
+
             {wordData.theologicalImplications && (
               <>
                 <h4>Theological Implications</h4>
@@ -108,12 +108,12 @@ const WordStudy = ({ word, language }) => {
             )}
           </div>
         )}
-        
+
         {activeTab === 'concordance' && concordance && (
           <div className="concordance-content">
             <h3>Concordance</h3>
             <p>This word appears {concordance.occurrences} times in Scripture.</p>
-            
+
             <div className="occurrence-list">
               {concordance.verses.map((verse, index) => (
                 <div key={index} className="occurrence-item">

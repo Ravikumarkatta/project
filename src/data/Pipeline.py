@@ -1,15 +1,17 @@
-import pandas as pd
-import torch
-from torch.utils.data import DataLoader, Dataset
-from torch import Tensor
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
+import torch
+from torch import Tensor
+from torch.utils.data import DataLoader, Dataset
+
 from src.data.preprocessing import (
-    BiblicalTextPreprocessor,
     BiblicalAugmenter,
+    BiblicalTextPreprocessor,
     BiblicalTokenizer,
     VerseDetector,
 )
+
 
 class Pipeline:
     def __init__(self) -> None:
@@ -41,27 +43,41 @@ class Pipeline:
 
     def collate_fn(self, batch: List[Dict[str, Tensor]]) -> Tuple[Tensor, Tensor]:
         # Collate function for DataLoader to batch input and target tensors
-        inputs = [item['input'] for item in batch]
-        targets = [item['target'] for item in batch]
+        inputs = [item["input"] for item in batch]
+        targets = [item["target"] for item in batch]
         input_tensor = torch.stack(inputs)
         target_tensor = torch.stack(targets)
         return input_tensor, target_tensor
 
-    def create_dataloaders(self, dataset: Dataset, batch_size: int = 32) -> Tuple[DataLoader[Any], DataLoader[Any]]:
+    def create_dataloaders(
+        self, dataset: Dataset, batch_size: int = 32
+    ) -> Tuple[DataLoader[Any], DataLoader[Any]]:
         # Split dataset into training and validation sets, then create DataLoaders
         train_size = int(0.8 * len(dataset))
         val_size = len(dataset) - train_size
-        train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size]
+        )
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=self.collate_fn)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=self.collate_fn)
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            collate_fn=self.collate_fn,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            collate_fn=self.collate_fn,
+        )
         return train_loader, val_loader
 
     def prepare_dataset(self, file_path: str) -> Dataset:
         # Load and preprocess data from a CSV file into a custom Dataset
         df = pd.read_csv(file_path)
-        questions: List[str] = df['question'].tolist()
-        answers: List[str] = df['answer'].tolist()
+        questions: List[str] = df["question"].tolist()
+        answers: List[str] = df["answer"].tolist()
 
         processed_questions = [self.preprocess_text(q) for q in questions]
         processed_answers = [self.preprocess_text(a) for a in answers]
@@ -71,7 +87,9 @@ class Pipeline:
 
         class QADataset(Dataset):
             # Internal dataset class for handling QA pairs
-            def __init__(self, questions: List[List[str]], answers: List[List[str]]) -> None:
+            def __init__(
+                self, questions: List[List[str]], answers: List[List[str]]
+            ) -> None:
                 self.questions = questions
                 self.answers = answers
 
@@ -82,8 +100,8 @@ class Pipeline:
             def __getitem__(self, idx: int) -> Dict[str, Any]:
                 # Return one sample pair (input and target)
                 return {
-                    'input': torch.tensor(self.questions[idx], dtype=torch.long),
-                    'target': torch.tensor(self.answers[idx], dtype=torch.long),
+                    "input": torch.tensor(self.questions[idx], dtype=torch.long),
+                    "target": torch.tensor(self.answers[idx], dtype=torch.long),
                 }
 
         dataset = QADataset(tokenized_questions, tokenized_answers)
