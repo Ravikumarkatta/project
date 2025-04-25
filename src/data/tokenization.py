@@ -1,342 +1,407 @@
-# bible/src/data/tokenization.py
 """
-Custom tokenization for Bible-AI project.
-
-This module provides tokenization utilities for biblical texts, preserving verse references,
-theological terms, and handling special cases like Hebrew/Greek terms. It integrates with
-HuggingFace tokenizers and supports the data pipeline for model training.
+Biblical Text Tokenizer
+- Verse reference preservation (Rom 3:16-18)
+- Theological term handling (YHWH[_FULL] → [LORD])
+- Configurable memory mapping
+- Safe loading with binary format support
+- PyTorch Dataloader integration
 """
 
-import json
-import logging
-import os
 import re
-from typing import Dict, List, Optional, Tuple, Union
-
-import nltk
-from nltk.tokenize import word_tokenize
-import numpy as np
+import os
+import logging
+from io import BytesIO
+from typing import Dict, Optional, List, Union, Any
 import torch
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from torch.serialization import load, SourceChangeWarning
+from transformers import AutoTokenizer, PreTrainedTokenizer, logging as hf_logging
+from pydantic import BaseModel
+import safetensors.torch as safe
 
-# NLTK setup
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt", quiet=True)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+hf_logging.set_verbosity_warning())
 
-# Project-specific imports
-try:
-    from src.utils.logger import get_logger
-except ImportError:
-    logging.basicConfig(level=logging.INFO)
-    get_logger = lambda name: logging.getLogger(name)
+# Terminal colors
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
-logger = get_logger("BiblicalTokenizer")
+# Book abbreviation mapping
+BOOK_ABBS: Dict[str, str] = {
+    # Old Testament
+    "Gen": "Genesis", "Ex": "Exodus", "Lev": "Leviticus", 
+    "Num": "Numbers", "Deut": "Deuteronomy", "Josh": "Joshua",
+    "Judg": "Judges", "Ruth": "Ruth", "1Sm": "1 Samuel",
+    "2Sm": "2 Samuel", "1Kgs": "1 Kings", "2Kgs": "2 Kings",
+    "1Chr": "1 Chronicles", "2Chr": "2 Chronicles", "Ezra": "Ezra",
+    "Neh": "Nehemiah", "Esth": "Esther", "Job": "Job",
+    "Ps": "Psalms", "Pr": "Proverbs", "Eccl": "Ecclesiastes",
+    "Song": "Song of Solomon", "Isa": "Isaiah", "Jer": "Jeremiah",
+    "Lam": "Lamentations", "Ezek": "Ezekiel", "Dan": "Daniel",
+    "Hos": "Hosea", "Joel": "Joel", "Amos": "Amos", "Obad": "Obadiah",
+    "Jonah": "Jonah", "Mic": "Micah", "Nah": "Nahum", "Hab": "Habakkuk",
+    "Zeph": "Zephaniah", "Hag": "Haggai", "Zech": "Zechariah",
+    "Mal": "Malachi", "Matt": "Matthew", "Mark": "Mark", 
+    "Lk": "Luke", "Jn": "John", "Acts": "Acts", "Rom": "Romans",
+    "1Cor": "1 Corinthians", "2Cor": "2 Corinthians", "Gal": "Galatians",
+    "Eph": "Ephesians", "Phil": "Philippians", "Col": "Colossians",
+    "1Thess": "1 Thessalonians", "2Thess": "2 Thessalonians",
+    "1Tim": "1 Timothy", "2Tim": "2 Timothy", "Titus": "Titus",
+    "Phlm": "Philemon", "Heb": "Hebrews", "Jas": "James",
+    "1Pet": "1 Peter", "2Pet": "2 Peter", "1Jn": "1 John",
+    "2Jn": "2 John", "3Jn": "3 John", "Jude": "Jude", 
+    "Rev": "Revelation"
+}
 
+class TokenizerConfig(BaseModel):
+    """Configuration schema for tokenizer validation"""
+    
+    max_tokens: int = 512
+    safe_load: bool = True
+    device: str = "cuda"
+    book_abbreviations: Dict[str, str] = BOOK_ABBS
+    special_terms: List[str] = ["YHWH", "Trinity", "Ark", "Law"]
+    verse_pattern: str = r"\b([Jj]n|[Mm]att|[Rr]om|[Rr]ev?[[:alnum:]])[:,.]\s*\d+[:.]\d+"
+    output_type: str = "pt"
+    encoding: str = "utf-8"
 
-class BiblicalTokenizer:
-    """Custom tokenizer for biblical texts with verse reference preservation."""
+class BibleTokenizer:
+    """
+    Tokenizer specialized for biblical texts with:
+    - Verse reference preservation (e.g., "Rev 1:7" → "__VREF_001__")
+    - Theological term standardization (e.g., "YHWH" → "[LORD]")
+    - Book abbreviation expansion (e.g., "1Chr" → "1 Chronicles")
+    - Memory-efficient loading for large checkpoints
+    - Integrated error recovery and validation
 
+    Attributes:
+        base_tokenizer: Underlying HuggingFace tokenizer
+        config: Tokenizer configuration
+        verse_pattern: Compiled regex pattern for verse references
+        term_replacer: Dictionary for special term replacements
+    """
+    
     def __init__(
         self,
-        base_tokenizer_name: str = "bert-base-uncased",
-        config_path: Optional[str] = "config/data_config.json",
-        max_length: int = 512,
+        base_model: str = "sentence-transformers/LaBSE",
+        config_path: Optional[str] = None,
+        disable_warnings: bool = False
     ):
         """
-        Initialize the tokenizer with a base HuggingFace tokenizer and custom rules.
-
+        Initialize the Bible tokenizer
+        
         Args:
-            base_tokenizer_name: Name of the base tokenizer (e.g., 'bert-base-uncased').
-            config_path: Path to configuration file for tokenization rules.
-            max_length: Maximum sequence length for tokenization.
+            base_model: HuggingFace model name to use as base
+            config_path: Optional custom configuration path
+            disable_warnings: Suppress warning messages
         """
-        self.base_tokenizer = AutoTokenizer.from_pretrained(base_tokenizer_name)
-        self.max_length = max_length
+        self._setup_logging(disable_warnings)
         self.config = self._load_config(config_path)
-
-        # Compile regex patterns for verse references and special terms
-        self.verse_pattern = re.compile(
-            r"\[(\d+:\d+)\]"
-        )  # From preprocessing.py: [chapter:verse]
-        self.book_chapter_verse_pattern = re.compile(
-            r"([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)(?:-(\d+))?"
-        )  # e.g., "John 3:16" or "John 3:16-18"
-        self.theological_terms = set(self.config.get("theological_terms", []))
-        self.special_terms = self.config.get(
-            "special_terms", {"YHWH", "JHVH", "LORD", "Son of Man"}
-        )
-        logger.info(
-            "Initialized BiblicalTokenizer with base tokenizer %s", base_tokenizer_name
-        )
-
-    def _load_config(self, config_path: str) -> Dict:
-        """Load tokenization configuration from file."""
-        default_config = {
-            "theological_terms": [
-                "god",
-                "jesus",
-                "christ",
-                "holy spirit",
-                "messiah",
-                "sin",
-                "salvation",
-                "grace",
-                "faith",
-                "prophet",
-                "apostle",
-                "gospel",
-                "covenant",
-            ],
-            "special_terms": {"YHWH", "JHVH", "LORD", "Son of Man"},
-            "preserve_verse_references": True,
-            "handle_special_terms": True,
+        self.term_replacer = {
+            k: f"[{k.upper()}]" for k in self.config.special_terms
         }
-        if config_path and os.path.exists(config_path):
+        
+        # Initialize base tokenizer
+        self.base_tokenizer = AutoTokenizer.from_pretrained(
+            base_model,
+            use_fast=True,
+            trust_remote_code=True
+        )
+        
+        # Compile regex patterns
+        self.verse_pattern = re.compile(self.config.verse_pattern)
+        self.book_pattern = re.compile(
+            r"\b(" + "|".join(map(re.escape, self.config.book_abbreviations.keys())) + r")\b",
+            flags=re.IGNORECASE
+        )
+        
+        logger.info(f"Initialized BibleTokenizer using {base_model}")
+
+    def _setup_logging(self, disable_warnings: bool):
+        """ Configure logging levels and warnings """
+        if disable_warnings:
+            logger.setLevel(logging.ERROR)
+            logging.getLogger("transformers").setLevel(logging.ERROR)
+            
+        format_str = "%(asctime)s - [%(levelname)s] %(name)s: %(message)s"
+        logging.basicConfig(format=format_str, level=logging.INFO)
+
+    def _load_config(self, config_path: Optional[str]) -> Dict:
+        """Load validated configuration from file or defaults"""
+        config = TokenizerConfig()
+        
+        if config_path:
             try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                default_config.update(config)
-                logger.info("Loaded tokenization config from %s", config_path)
+                with open(config_path) as f:
+                    data = json.load(f)
+                merged = config.model_copy(update=data)
+                return merged
             except Exception as e:
-                logger.error("Failed to load config: %s, using defaults", e)
-        return default_config
+                logger.error(f"Config loading failed: {str(e)}")
+                raise ConfigurationError("Invalid configuration file") from e
+        else:
+            logger.warning("Using default configuration - consider providing config file")
+            return config
 
-    def _preserve_special_terms(self, text: str) -> Tuple[str, Dict[str, str]]:
+    def normalize_text(self, text: str) -> str:
         """
-        Replace special terms with placeholders to preserve them during tokenization.
-
+        Process text to handle:
+        1. Verse reference standardization
+        2. Book abbreviation expansion
+        3. Special term formatting
+        
         Args:
-            text: Input text.
-
+            text: Raw input text
+            
         Returns:
-            Tuple of (modified text, mapping of placeholders to original terms).
+            Processed text with standardized elements
         """
-        placeholder_map: Dict[str, str] = {}
-        if not self.config.get("handle_special_terms", True):
-            return text, placeholder_map
+        try:
+            steps = 0
+            original_len = len(text)
+            
+            # Step 1: Normalize verse references
+            verse_replaced, count = self._replace_verses(text)
+            steps += count
+            
+            # Step 2: Expand book abbreviations
+            expanded = self._expand_abbreviations(verse_replaced)
+            steps += 1
+            
+            # Step 3: Replace special theological terms
+            final_text, term_count = self._replace_special_terms(expanded)
+            steps += term_count
+            
+            logger.debug(
+                f"Processed text in {steps} steps: {len(final_text)/original_len:.2%} length preserved"
+            )
+            return final_text
+            
+        except Exception as e:
+            logger.error(f"Text normalization failed: {str(e)}")
+            raise RuntimeError("Critical normalization error") from e
 
-        # Preserve verse references (e.g., [3:16])
+    def _replace_verses(self, text: str) -> Tuple[str, int]:
+        """Convert verse references to standardized format"""
+        replacement_map = {}
+        count = 0
+        
+        # Process verse patterns
         for match in self.verse_pattern.finditer(text):
-            verse_ref = match.group(0)  # e.g., [3:16]
-            placeholder = f"__VERSE_REF_{len(placeholder_map)}__"
-            placeholder_map[placeholder] = verse_ref
-            text = text.replace(verse_ref, placeholder)
+            full_ref = match.group()
+            cleaned_ref = re.sub(r"[^\w:]", "", full_ref)
+            replacement = f"__VREF_{count:03d}__"
+            text = text.replace(full_ref, replacement)
+            replacement_map[replacement] = cleaned_ref
+            count += 1
 
-        # Preserve book chapter:verse references (e.g., John 3:16)
-        for match in self.book_chapter_verse_pattern.finditer(text):
-            full_ref = match.group(0)  # e.g., John 3:16
-            placeholder = f"__BOOK_REF_{len(placeholder_map)}__"
-            placeholder_map[placeholder] = full_ref
-            text = text.replace(full_ref, placeholder)
+        # Process book abbreviations
+        for abbrev, full_name in self.config.book_abbreviations.items():
+            pattern = re.compile(r"\b" + re.escape(abbrev) + r"\b", re.IGNORECASE)
+            if pattern.search(text):
+                text = pattern.sub(full_name, text)
+                count += 1
 
-        # Preserve theological and special terms
-        for term in self.theological_terms | self.special_terms:
-            placeholder = f"__TERM_{len(placeholder_map)}__"
-            text = re.sub(rf"\b{term}\b", placeholder, text, flags=re.IGNORECASE)
-            placeholder_map[placeholder] = term
+        logger.info(f"Replaced {count} verse references")
+        return text, count
 
-        return text, placeholder_map
-
-    def _restore_special_terms(
-        self, tokens: List[str], placeholder_map: Dict[str, str]
-    ) -> List[str]:
-        """
-        Restore special terms from placeholders after tokenization.
-
-        Args:
-            tokens: List of tokenized strings.
-            placeholder_map: Mapping of placeholders to original terms.
-
-        Returns:
-            List of tokens with restored terms.
-        """
-        restored_tokens = []
-        for token in tokens:
-            if token in placeholder_map:
-                # Split the restored term into sub-tokens if necessary
-                restored_term = placeholder_map[token]
-                if token.startswith("__VERSE_REF_") or token.startswith("__BOOK_REF_"):
-                    restored_tokens.append(restored_term)
-                else:
-                    sub_tokens = word_tokenize(restored_term)
-                    restored_tokens.extend(sub_tokens)
-            else:
-                restored_tokens.append(token)
-        return restored_tokens
-
-    def tokenize(
-        self, text: str, return_tensors: Optional[str] = "pt"
-    ) -> Dict[str, Union[torch.Tensor, List, np.ndarray]]:
-        """
-        Tokenize text while preserving verse references and theological terms.
-
-        Args:
-            text: Input text to tokenize.
-            return_tensors: Format of returned tensors ('pt' for PyTorch, 'np' for NumPy, None for list).
-
-        Returns:
-            Dictionary with tokenized outputs (input_ids, attention_mask, etc.).
-        """
-        # Step 1: Preserve special terms
-        modified_text, placeholder_map = self._preserve_special_terms(text)
-
-        # Step 2: Tokenize with base tokenizer
-        base_encoding = self.base_tokenizer(
-            modified_text,
-            max_length=self.max_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors=None,  # We'll handle tensor conversion later
-        )
-
-        # Step 3: Restore special terms in the tokenized output
-        tokens = self.base_tokenizer.convert_ids_to_tokens(base_encoding["input_ids"])
-        restored_tokens = self._restore_special_terms(tokens, placeholder_map)
-
-        # Step 4: Convert restored tokens back to IDs
-        restored_ids = []
-        for token in restored_tokens:
-            if token in placeholder_map.values():
-                # If it's a verse reference or special term, encode as-is
-                token_ids = self.base_tokenizer.encode(
-                    token, add_special_tokens=False, return_tensors=None
+    def _expand_abbreviations(self, text: str) -> str:
+        """Expand all book abbreviations to full names"""
+        for abbrev, full in self.config.book_abbreviations.items():
+            if abbrev in ("Matt", "Matt"):
+                text = re.sub(
+                    r"\b(M[m]a?t?t?r?[s]?)\b", 
+                    lambda m: self.config.book_abbreviations.get(m.group(1), m.group(1)),
+                    text,
+                    flags=re.IGNORECASE
                 )
-                restored_ids.extend(token_ids)
             else:
-                token_id = self.base_tokenizer.convert_tokens_to_ids(token)
-                restored_ids.append(token_id)
-
-        # Truncate to max_length if necessary
-        restored_ids = restored_ids[: self.max_length]
-        attention_mask = [1] * len(restored_ids)
-
-        # Pad to max_length
-        padding_length = self.max_length - len(restored_ids)
-        restored_ids.extend([self.base_tokenizer.pad_token_id] * padding_length)
-        attention_mask.extend([0] * padding_length)
-
-        # Convert to tensors if requested
-        if return_tensors == "pt":
-            return {
-                "input_ids": torch.tensor(restored_ids, dtype=torch.long),
-                "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-            }
-        elif return_tensors == "np":
-            return {
-                "input_ids": np.array(restored_ids, dtype=np.int64),
-                "attention_mask": np.array(attention_mask, dtype=np.int64),
-            }
-        else:
-            return {"input_ids": restored_ids, "attention_mask": attention_mask}
-
-    def tokenize_instruction_data(
-        self, instruction: str, input_text: str, output: str, return_tensors: Optional[str] = "pt"
-    ) -> Dict[str, Union[torch.Tensor, List, np.ndarray]]:
-        """
-        Tokenize instruction data for fine-tuning (used by BibleInstructionDataset).
-
-        Args:
-            instruction: Instruction text (e.g., "Explain the verse").
-            input_text: Input text (e.g., "John 3:16").
-            output: Expected output text.
-            return_tensors: Format of returned tensors ('pt' for PyTorch, 'np' for NumPy).
-
-        Returns:
-            Dictionary with tokenized inputs, attention mask, and labels.
-        """
-        # Format prompt as in BibleInstructionDataset
-        prompt = f"Instruction: {instruction}\n\nInput: {input_text}\n\nOutput: "
-        prompt_encoding = self.tokenize(prompt, return_tensors=None)
-        output_encoding = self.tokenize(output, return_tensors=None)
-
-        # Combine input_ids: prompt + output
-        input_ids = prompt_encoding["input_ids"] + output_encoding["input_ids"]
-        input_ids = input_ids[: self.max_length]
-
-        # Combine attention masks
-        attention_mask = (
-            prompt_encoding["attention_mask"] + output_encoding["attention_mask"]
-        )
-        attention_mask = attention_mask[: self.max_length]
-
-        # Create labels: -100 for prompt tokens, actual IDs for output tokens
-        prompt_length = len(prompt_encoding["input_ids"])
-        labels = [-100] * prompt_length + output_encoding["input_ids"]
-        labels = labels[: self.max_length]
-
-        # Pad to max_length
-        padding_length = self.max_length - len(input_ids)
-        input_ids.extend([self.base_tokenizer.pad_token_id] * padding_length)
-        attention_mask.extend([0] * padding_length)
-        labels.extend([-100] * padding_length)
-
-        if return_tensors == "pt":
-            return {
-                "input_ids": torch.tensor(input_ids, dtype=torch.long),
-                "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
-                "labels": torch.tensor(labels, dtype=torch.long),
-            }
-        elif return_tensors == "np":
-            return {
-                "input_ids": np.array(input_ids, dtype=np.int64),
-                "attention_mask": np.array(attention_mask, dtype=np.int64),
-                "labels": np.array(labels, dtype=np.int64),
-            }
-        else:
-            return {
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "labels": labels,
-            }
-
-    def detokenize(self, input_ids: Union[List[int], torch.Tensor]) -> str:
-        """
-        Convert token IDs back to text, preserving special terms.
-
-        Args:
-            input_ids: List or tensor of token IDs.
-
-        Returns:
-            Decoded text string.
-        """
-        if isinstance(input_ids, torch.Tensor):
-            input_ids = input_ids.tolist()
-
-        # Remove padding tokens
-        input_ids = [
-            id_ for id_ in input_ids if id_ != self.base_tokenizer.pad_token_id
-        ]
-
-        # Decode tokens
-        text = self.base_tokenizer.decode(input_ids, skip_special_tokens=True)
+                text = re.sub(
+                    r"\b" + re.escape(abbrev) + r"\b",
+                    self.config.book_abbreviations[abbrev],
+                    text,
+                    flags=re.IGNORECASE
+                )
         return text
 
+    def _replace_special_terms(self, text: str) -> Tuple[str, int]:
+        """Replace theological terms with standardized tokens"""
+        count = 0
+        for term in self.config.special_terms:
+            term = term.lower()
+            pattern = re.compile(
+                rf"(?i)\b({term})\b",
+                flags=re.IGNORECASE | re.MULTILINE
+            )
+            if matches := pattern.finditer(text):
+                for match in matches:
+                    term_start, term_end = match.span()
+                    preceding_space = text[max(0, term_start-1):term_start].isspace()
+                    new_term = f"[{term.upper()}]"
+                    if preceding_space:
+                        text = text[:term_start] + new_term + text[term_end:]
+                    else:
+                        text = text[:term_start] + " " + new_term + text[term_end:]
+                    count += 1
+        logger.debug(f"Replaced {count} special terms")
+        return text, count
 
-# Example usage
-if __name__ == "__main__":
-    # Initialize tokenizer
-    tokenizer = BiblicalTokenizer(base_tokenizer_name="bert-base-uncased")
+    def tokenize(self, text: str, return_tensors: str = "pt") -> Dict[str, Any]:
+        """
+        Main tokenization interface
+        
+        Args:
+            text: Input text to tokenize
+            return_tensors: Return type ("pt", "np", or "jax")
+            
+        Returns:
+            Dictionary containing:
+            - input_ids: Tokenized sequence ids
+            - attention_mask: Mask for valid tokens
+            - special_tokens: Dictionary of replaced special terms
+        """
+        try:
+            # Normalization pipeline
+            processed = self.normalize_text(text)
+            
+            # Base tokenization
+            encoding = self.base_tokenizer(
+                processed,
+                max_length=self.config.max_tokens,
+                padding="longest",
+                truncation=True,
+                return_tensors=return_tensors
+            )
+            
+            return {
+                **encoding,
+                "special_tokens": self._collect_special_tokens(processed)
+            }
+            
+        except Exception as e:
+            logger.error(f"Tokenization failed: {str(e)}")
+            raise RuntimeError("Fatal tokenization error") from e
 
-    # Example text with verse reference and theological term
-    text = "John 3:16 For God so loved the world, [3:16] YHWH said."
+    def load_state_dict(self, checkpoint_path: str, **kwargs) -> Dict:
+        """
+        Safe state dictionary loading with recovery options
+        
+        Args:
+            checkpoint_path: Path to model checkpoint
+            kwargs: Additional arguments for torch.load
+            
+        Returns:
+            Dictionary of loaded tensors
+            
+        Raises:
+            FileNotFoundError: If checkpoint file doesn't exist
+            RuntimeError: For non-recoverable errors
+        """
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(
+                f"Checkpoint file not found: {checkpoint_path}\n"
+                f"Ensure you've run:\n"
+                f"python -m torch.serialization.save_module ...  # or appropriate saving method",
+                bcolors.FAIL
+            )
+        
+        try:
+            return torch.load(
+                checkpoint_path,
+                map_location=kwargs.get("map_location", "cpu"),
+                weights_only=kwargs.get("weights_only", True),
+                pickle_module=kwargs.get("pickle_module", pickle),
+            )
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.critical(f"Checkpoint load failed: {error_msg}")
 
-    # Tokenize
-    encoding = tokenizer.tokenize(text, return_tensors="pt")
-    print("Input IDs:", encoding["input_ids"])
-    print("Attention Mask:", encoding["attention_mask"])
+            # Attempt recovery routes:
+            recovery_steps = [
+                self._try_mmap_load(checkpoint_path, **kwargs),
+                self._try_safetensors_load(checkpoint_path, **kwargs),
+                self._try_legacy_load(checkpoint_path, **kwargs),
+            ]
+            
+            for i, (result, error) in enumerate(zip(recovery_steps, self._get_recovery_errors())):
+                if result is not None:
+                    logger.warning(f"Recovery step {i+1} succeeded with warning: {error}")
+                    return result
+                logger.debug(f"Recovery step {i+1} failed: {error}")
 
-    # Detokenize
-    decoded_text = tokenizer.detokenize(encoding["input_ids"])
-    print("Decoded Text:", decoded_text)
+            raise RuntimeError(
+                f"Failed all recovery attempts for: {checkpoint_path}\n"
+                f"Error details: '{error_msg}'"
+            ) from e
 
-    # Example instruction data
-    instruction = "Explain the verse."
-    input_text = "John 3:16"
-    output = "For God so loved the world that he gave his only Son."
-    instruction_encoding = tokenizer.tokenize_instruction_data(
-        instruction, input_text, output, return_tensors="pt"
-    )
-    print("Instruction Input IDs:", instruction_encoding["input_ids"])
-    print("Instruction Labels:", instruction_encoding["labels"])
+    def _try_mmap_load(self, path: str, **kwargs) -> Optional[Dict]:
+        """Attempt memory-mapped loading"""
+        try:
+            from torch._utils import _getillow_version
+            if _getpillow_version() < (8,):
+                raise RuntimeError(f"Pillow >=8.0 required, version {_getpillow_version()} found")
+            
+            with open(path, "rb") as f:
+                return torch.load(f, mmap=True, **kwargs)
+                
+        except Exception as e:
+            logger.warning(
+                "Memory-mapped loading failed: %s\nFallback required", 
+                str(e)
+            )
+            return None
+
+    def _try_safetensors_load(self, path: str, **kwargs) -> Optional[Dict]:
+        """Attempt loading from safetensors format"""
+        try:
+            return safe.load_file(path, **kwargs)
+        except Exception as e:
+            logger.debug(f"Safetensors load failed: {str(e)}")
+            return None
+
+    def _try_legacy_load(self, path: str, **kwargs) -> Optional[Dict]:
+        """Legacy pickle format fallback"""
+        try:
+            from torch.serialization import pickle_load
+            with open(path, "rb") as f:
+                return pickle_load(f, **kwargs)
+        except Exception as e:
+            logger.error(f"Legacy loading failed: {str(e)}")
+            return None
+
+    def _get_recovery_errors(self) -> List[str]:
+        """Predefined recovery error messages"""
+        return [
+            "MMAP failed: File might be corrupted or incompatible",
+            "Safetensors load failed: Format mismatch or version issue",
+            "Legacy load failed: Unsupported pickle protocol or data corruption"
+        ]
+
+
+# Default instance
+default_tokenizer = BibleTokenizer()
+
+def normalize_biblical_text(text: str) -> str:
+    """Wrapper function for external API"""
+    return default_tokenizer.normalize_text(text)
+
+def tokenize_biblical_text(
+    text: str,
+    return_tensors: str = "pt",
+) -> Dict[str, Union[List[int], torch.Tensor]]:
+    """Unified API for external use"""
+    return default_tokenizer.tokenize(text, return_tensors=return_tensors)
+                
