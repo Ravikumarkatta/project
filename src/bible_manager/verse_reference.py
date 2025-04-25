@@ -63,15 +63,17 @@ class VerseReferenceDetector:
         self.book_names.update(self.abbreviations)
 
         self.patterns = [
-            # Genesis 1:1-2:3 (cross-chapter range, allowing : or .)
+            # Genesis 1:1-2:3 (cross-chapter range, allowing : or .) - most specific
             rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)-(\d+)[:.](\d+)\b",
             # Genesis 1:1-3 (same chapter range, allowing : or .)
             rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)-(\d+)\b",
             # Genesis 1:1 (single verse, allowing : or .)
             rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)\b",
-            # Genesis 1 (whole chapter, ensuring no : or . follows the chapter number)
+            # Genesis 1 (whole chapter, ensuring no : or . follows the chapter number) - least specific
             rf"\b({self._book_pattern()})\s+(\d+)\b(?![:.])"
         ]
+        # Sort patterns by length (most specific first) to ensure proper matching
+        self.patterns.sort(key=lambda x: len(x), reverse=True)
 
         self.compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.patterns]
         
@@ -116,10 +118,17 @@ class VerseReferenceDetector:
         Returns a list of VerseReference objects.
         """
         references = []
+        seen_spans = set()
 
         for pattern in self.compiled_patterns:
             matches = pattern.finditer(text)
             for match in matches:
+                # Skip if we've already processed this span (to avoid duplicate matches)
+                span = match.span()
+                if span in seen_spans:
+                    continue
+                seen_spans.add(span)
+
                 groups = match.groups()
                 book_name = groups[0].lower()
                 
