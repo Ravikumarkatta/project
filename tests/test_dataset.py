@@ -64,7 +64,7 @@ def temp_instruction_file(sample_instruction_data):
 
 @pytest.fixture
 def tokenizer():
-    return BiblicalTokenizer(base_tokenizer_name="bert-base-uncased")
+    return BiblieTokenizer(base_tokenizer_name="bert-base-uncased")
 
 
 def test_bible_dataset_initialization(temp_bible_file, tokenizer):
