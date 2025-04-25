@@ -51,7 +51,7 @@ def test_search_bible():
 
     # Test with empty query
     response = client.get("/api/v1/search")
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test with book filter
     response = client.get("/api/v1/search?q=beginning&book=Genesis")

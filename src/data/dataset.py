@@ -279,9 +279,35 @@ def create_bible_dataloaders(
             if not batch:
                 return {} # Return empty dict for empty batch
 
+            # Pad sequences to the longest sequence in the batch
+            input_ids = [x['input_ids'] for x in batch]
+            attention_mask = [x['attention_mask'] for x in batch]
+
+            # Get padding token ID from the tokenizer
+            # Assuming the base tokenizer has a pad_token_id
+            pad_token_id = self.tokenizer.base_tokenizer.pad_token_id
+            if pad_token_id is None:
+                 # Fallback if pad_token_id is not defined (e.g., for some models like GPT-2)
+                 # Using the EOS token ID or a specific unused ID might be necessary depending on the model
+                 # For BERT-like models, pad_token_id is usually 0. Let's default to 0 if None.
+                 pad_token_id = self.tokenizer.base_tokenizer.eos_token_id if self.tokenizer.base_tokenizer.eos_token_id is not None else 0
+                 logger.warning(f"Tokenizer does not have a pad_token_id. Using {pad_token_id} for padding.")
+
+
+            padded_input_ids = torch.nn.utils.rnn.pad_sequence(
+                input_ids,
+                batch_first=True,
+                padding_value=pad_token_id # Use the tokenizer's padding token ID
+            )
+            padded_attention_mask = torch.nn.utils.rnn.pad_sequence(
+                attention_mask,
+                batch_first=True,
+                padding_value=0 # Attention mask should be 0 for padded tokens
+            )
+
             return {
-                'input_ids': torch.stack([x['input_ids'] for x in batch]),
-                'attention_mask': torch.stack([x['attention_mask'] for x in batch]),
+                'input_ids': padded_input_ids,
+                'attention_mask': padded_attention_mask,
             }
 
         train_loader = DataLoader(
@@ -359,10 +385,40 @@ def create_instruction_dataloaders(
             if not batch:
                 return {} # Return empty dict for empty batch
 
+            # Pad sequences to the longest sequence in the batch
+            input_ids = [x['input_ids'] for x in batch]
+            attention_mask = [x['attention_mask'] for x in batch]
+            labels = [x['labels'] for x in batch]
+
+            # Get padding token ID from the tokenizer
+            pad_token_id = self.tokenizer.base_tokenizer.pad_token_id
+            if pad_token_id is None:
+                 pad_token_id = self.tokenizer.base_tokenizer.eos_token_id if self.tokenizer.base_tokenizer.eos_token_id is not None else 0
+                 logger.warning(f"Tokenizer does not have a pad_token_id. Using {pad_token_id} for padding.")
+
+
+            padded_input_ids = torch.nn.utils.rnn.pad_sequence(
+                input_ids,
+                batch_first=True,
+                padding_value=pad_token_id # Use the tokenizer's padding token ID
+            )
+            padded_attention_mask = torch.nn.utils.rnn.pad_sequence(
+                attention_mask,
+                batch_first=True,
+                padding_value=0 # Attention mask should be 0 for padded tokens
+            )
+            # Labels should also be padded, typically with -100 to be ignored by loss functions
+            padded_labels = torch.nn.utils.rnn.pad_sequence(
+                labels,
+                batch_first=True,
+                padding_value=-100 # Use -100 for padding labels
+            )
+
+
             return {
-                'input_ids': torch.stack([x['input_ids'] for x in batch]),
-                'attention_mask': torch.stack([x['attention_mask'] for x in batch]),
-                'labels': torch.stack([x['labels'] for x in batch]),
+                'input_ids': padded_input_ids,
+                'attention_mask': padded_attention_mask,
+                'labels': padded_labels,
             }
 
         train_loader = DataLoader(
@@ -394,5 +450,3 @@ def create_instruction_dataloaders(
     except Exception as e:
         logger.error(f"Failed to create instruction dataloaders: {e}", exc_info=True)
         raise RuntimeError(f"Instruction dataloader creation failed: {e}") from e
-
-

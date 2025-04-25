@@ -63,14 +63,14 @@ class VerseReferenceDetector:
         self.book_names.update(self.abbreviations)
 
         self.patterns = [
-            # Genesis 1:1-2:3 (cross-chapter range)
-            rf"\b({self._book_pattern()})\s+(\d+):(\d+)-(\d+):(\d+)\b",
-            # Genesis 1:1-3 (same chapter range)
-            rf"\b({self._book_pattern()})\s+(\d+):(\d+)-(\d+)\b",
-            # Genesis 1:1 (single verse)
-            rf"\b({self._book_pattern()})\s+(\d+):(\d+)\b",
-            # Genesis 1 (whole chapter)
-            rf"\b({self._book_pattern()})\s+(\d+)\b"
+            # Genesis 1:1-2:3 (cross-chapter range, allowing : or .)
+            rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)-(\d+)[:.](\d+)\b",
+            # Genesis 1:1-3 (same chapter range, allowing : or .)
+            rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)-(\d+)\b",
+            # Genesis 1:1 (single verse, allowing : or .)
+            rf"\b({self._book_pattern()})\s+(\d+)[:.](\d+)\b",
+            # Genesis 1 (whole chapter, ensuring no : or . follows the chapter number)
+            rf"\b({self._book_pattern()})\s+(\d+)\b(?![:.])"
         ]
 
         self.compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.patterns]

@@ -19,11 +19,12 @@ pyjwt==2.8.0
 passlib[bcrypt]==1.7.4
 
 # Monitoring (Essential Only)
-psutil==5.9.0
+psutil
 
 # Testing (Core)
 pytest==7.0.0
 pytest-asyncio==0.15.0
+pydantic
 httpx>=0.24.0  # Required by TestClient
 
 # Code Quality
