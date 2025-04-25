@@ -1,0 +1,730 @@
+﻿i mpor t  r e 
+i mpor t  os 
+i mpor t  l oggi ng 
+f r om  i o  i mpor t  Byt es I O 
+f r om  t ypi ng  i mpor t  Di ct ,  Opt i onal ,  Li s t ,  Uni on,  Any,  Tupl e 
+i mpor t  t or ch 
+f r om  t or ch. s er i al i zat i on  i mpor t  l oad,  Sour ceChangeWar ni ng 
+f r om  t r ans f or mer s  i mpor t  Aut oTokeni zer ,  Pr eTr ai nedTokeni zer ,  l oggi ng as  hf _l oggi ng 
+f r om  pydant i c  i mpor t  Bas eModel ,  Val i dat i onEr r or  #  I mpor t 
+Val i dat i onEr r or 
+i mpor t  s af et ens or s . t or ch  as  s af e 
+i mpor t  j s on 
+i mpor t  pi ckl e 
+i mpor t  s ys  #  I mpor t  s ys  f or  Pyt hon  ver s i on  check 
+i mpor t  war ni ngs  #  I mpor t  war ni ngs  t o  cat ch  Sour ceChangeWar ni ng 
+# - - -  Conf i gur at i on  and  Set up  - - - 
+# Conf i gur e  l oggi ng  f or  t he  modul e 
+l oggi ng. bas i cConf i g( 
+     l evel =l oggi ng. I NFO,  #  Set  def aul t  l oggi ng  l evel 
+     f or mat ="%( as ct i me) s  -  %( name) s  -  %( l evel name) s  -  %( mes s age) s ", 
+) 
+l ogger  =  l oggi ng. get Logger ( __name__)  #  Logger  s peci f i c  t o  t hi s  modul e hf _l oggi ng. s et _ver bos i t y_war ni ng( )  #  Keep  Huggi ngFace  war ni ngs  at 
+war ni ng  l evel 
+# Def i ne  cus t om  except i on  f or  conf i gur at i on  er r or s 
+cl as s  Conf i gur at i onEr r or ( Except i on) : 
+     """Cus t om  except i on  r ai s ed  f or  er r or s  i n  t okeni zer conf i gur at i on. """ 
+     pas s 
+# Def i ne  t he  conf i gur at i on  s chema  us i ng  Pydant i c  f or  val i dat i on cl as s  Tokeni zer Conf i g( Bas eModel ) : 
+     """ 
+     Conf i gur at i on  s chema  f or  t he  Bi bl eTokeni zer . 
+     At t r i but es : 
+         max_t okens ( i nt ) : Maxi mum s equence l engt h f or t okeni zat i on. 
+         s af e_l oad ( bool ) : Whet her t o at t empt s af e l oadi ng f or checkpoi nt s  ( cur r ent l y  not  f ul l y  ut i l i zed  i n  l oad_s t at e_di ct ) . 
+         devi ce  ( s t r ) :  Def aul t  devi ce  f or  PyTor ch  t ens or s  ( ' cuda'  or 
+' cpu' ) . 
+         book_abbr evi at i ons  ( Di ct [ s t r ,  s t r ] ) :  Mappi ng  of  book 
+abbr evi at i ons  t o  f ul l  names . 
+         s peci al _t er ms  ( Li s t [ s t r ] ) :  Li s t  of  t heol ogi cal  t er ms  t o 
+s t andar di ze. 
+         ver s e_pat t er n  ( s t r ) :  Regex  pat t er n  f or  i dent i f yi ng  ver s e 
+r ef er ences . 
+         out put _t ype  ( s t r ) :  Des i r ed  out put  t ens or  t ype  ( ' pt ' ,  ' np' , 
+' j ax' ) . 
+         encodi ng  ( s t r ) :  Fi l e  encodi ng  f or  r eadi ng  conf i gur at i on  f i l es .      """ 
+     max_t okens :  i nt  =  512 
+     s af e_l oad:  bool  =  Tr ue  #  Not e:  Thi s  at t r i but e  i s  cur r ent l y  not 
+act i vel y  us ed  i n  l oad_s t at e_di ct  l ogi c  but  kept  f or  conf i g  s chema. 
+     devi ce:  s t r  =  "cuda"  i f  t or ch. cuda. i s _avai l abl e( )  el s e  "cpu"  # 
+Def aul t  t o  cuda  i f  avai l abl e 
+# Def aul t  book  abbr evi at i ons  ( can  be  over r i dden  by  conf i g  f i l e) 
+     book_abbr evi at i ons :  Di ct [ s t r ,  s t r ]  =  { 
+         "Gen":  "Genes i s ",  "Ex":  "Exodus ",  "Lev":  "Levi t i cus ",  "Num": "Number s ", 
+         "Deut ":  "Deut er onomy",  "J os h":  "J os hua",  "J udg":  "J udges ", "Rut h":  "Rut h", 
+         "1Sm":  "1  Samuel ",  "2Sm":  "2  Samuel ",  "1Kgs ":  "1  Ki ngs ", 
+"2Kgs ":  "2  Ki ngs ", 
+         "1Chr ":  "1  Chr oni cl es ",  "2Chr ":  "2  Chr oni cl es ",  "Ezr a": 
+"Ezr a",  "Neh":  "Nehemi ah", 
+         "Es t h":  "Es t her ",  "J ob":  "J ob",  "Ps ":  "Ps al ms ",  "Pr ": 
+"Pr over bs ", 
+         "Eccl ":  "Eccl es i as t es ",  "Song":  "Song  of  Sol omon",  "I s a": 
+"I s ai ah",  "J er ":  "J er emi ah", 
+         "Lam":  "Lament at i ons ",  "Ezek":  "Ezeki el ",  "Dan":  "Dani el ", "Hos ":  "Hos ea", 
+         "J oel ":  "J oel ",  "Amos ":  "Amos ",  "Obad":  "Obadi ah",  "J onah": 
+"J onah", 
+         "Mi c":  "Mi cah",  "Nah":  "Nahum",  "Hab":  "Habakkuk",  "Zeph": "Zephani ah", 
+         "Hag":  "Haggai ",  "Zech":  "Zechar i ah",  "Mal ":  "Mal achi ", 
+         "Mat t ":  "Mat t hew",  "Mar k":  "Mar k",  "Lk":  "Luke",  "J n":  "J ohn", "Act s ":  "Act s ", 
+         "Rom":  "Romans ",  "1Cor ":  "1  Cor i nt hi ans ",  "2Cor ":  "2 
+Cor i nt hi ans ",  "Gal ":  "Gal at i ans ", 
+         "Eph":  "Ephes i ans ",  "Phi l ":  "Phi l i ppi ans ",  "Col ": 
+"Col os s i ans ", 
+         "1Thes s ":  "1  Thes s al oni ans ",  "2Thes s ":  "2  Thes s al oni ans ", 
+"1Ti m":  "1  Ti mot hy", 
+         "2Ti m":  "2  Ti mot hy",  "Ti t us ":  "Ti t us ",  "Phl m":  "Phi l emon", "Heb":  "Hebr ews ", 
+         "J as ":  "J ames ",  "1Pet ":  "1  Pet er ",  "2Pet ":  "2  Pet er ",  "1J n": "1  J ohn", 
+         "2J n":  "2  J ohn",  "3J n":  "3  J ohn",  "J ude":  "J ude",  "Rev": "Revel at i on" 
+     } 
+# Regex  pat t er n  t o  capt ur e  common  ver s e  r ef er ence  f or mat s  ( e. g. , 
+Gen  1: 1,  J n  3: 16- 18,  Rev  21. 1) 
+# I t  dynami cal l y  i ncl udes  al l  def i ned  book  abbr evi at i ons . 
+     ver s e_pat t er n:  s t r  =  ""  #  Wi l l  be  s et  i n  __i ni t __  bas ed  on book_abbr evi at i ons 
+     s peci al _t er ms :  Li s t [ s t r ]  =  [ "YHWH",  "Tr i ni t y",  "Ar k",  "Law", "Covenant ",  "Gr ace"]  #  Added  mor e  def aul t  t er ms 
+     out put _t ype:  s t r  =  "pt "  #  Def aul t  t o  PyTor ch  t ens or s 
+     encodi ng:  s t r  =  "ut f - 8"  #  Def aul t  f i l e  encodi ng 
+# Pydant i c  model  val i dat i on  -  ens ur es  ver s e_pat t er n  i s  gener at ed 
+af t er  book_abbr evi at i ons  ar e  l oaded 
+     def  model _pos t _i ni t ( s el f ,  __cont ext :  Any)  - >  None: 
+         """Pos t - i ni t i al i zat i on  hook  t o  gener at e  t he  ver s e  pat t er n. """ 
+# Gener at e  t he  ver s e  pat t er n  dynami cal l y  bas ed  on  t he  l oaded 
+abbr evi at i ons 
+         book_abbs _es caped  =  "| ". j oi n( r e. es cape( k)  f or  k  i n 
+s el f . book_abbr evi at i ons . keys ( ) ) 
+# Pat t er n:  wor d  boundar y,  f ol l owed  by  a  book  abbr evi at i on 
+( cas e- i ns ens i t i ve) , 
+# opt i onal  s pace,  chapt er  number ,  col on/ per i od,  ver s e  number , 
+# opt i onal  r ange  ( -  f ol l owed  by  number ) ,  opt i onal  s ub- ver s e  ( : 
+f ol l owed  by  number ) ,  wor d  boundar y. 
+         s el f . ver s e_pat t er n  = 
+r "\ b( ?: {}) \ s *\ d+[ : . ] \ d+( ?: - \ d+) ?( ?: [ : . ] \ d+) ?\ b". f or mat ( book_abbs _es cap ed) 
+         l ogger . debug( f "Gener at ed  ver s e  pat t er n:  {s el f . ver s e_pat t er n}") 
+# - - -  Mai n  Tokeni zer  Cl as s  - - - 
+cl as s  Bi bl eTokeni zer : 
+     """ 
+     A  s peci al i zed  t okeni zer  f or  bi bl i cal  t ext s  des i gned  t o  handl e: 
+- Pr es er vat i on  and  s t andar di zat i on  of  ver s e  r ef er ences  ( e. g. ,  "Rev 
+1: 7"  - >  "__VREF_001__") . 
+- St andar di zat i on  of  t heol ogi cal  t er ms  ( e. g. ,  "YHWH"  - >  "[ LORD] ") . 
+- Expans i on  of  book  abbr evi at i ons  ( e. g. ,  "1Chr "  - >  "1 
+Chr oni cl es ") . 
+- Conf i gur at i on  l oadi ng  and  val i dat i on. 
+- Saf e  and  memor y- ef f i ci ent  l oadi ng  of  model  checkpoi nt s . 
+- I nt egr at i on  wi t h  Huggi ngFace  t okeni zer s  and  PyTor ch. 
+     At t r i but es : 
+         conf i g  ( Tokeni zer Conf i g) :  The  val i dat ed  conf i gur at i on  obj ect .          bas e_t okeni zer  ( Pr eTr ai nedTokeni zer ) :  The  under l yi ng 
+Huggi ngFace  t okeni zer . 
+         ver s e_pat t er n_compi l ed  ( r e. Pat t er n) :  Compi l ed  r egex  pat t er n 
+f or  ver s e  r ef er ences . 
+         book_pat t er n_compi l ed  ( r e. Pat t er n) :  Compi l ed  r egex  pat t er n  f or book  abbr evi at i ons . 
+         t er m_r epl acer  ( Di ct [ s t r ,  s t r ] ) :  Mappi ng  of  l ower cas e  s peci al 
+t er ms  t o  t hei r  s t andar di zed  t okens . 
+         _ver s e_map  ( Di ct [ s t r ,  s t r ] ) :  I nt er nal  mappi ng  of  ver s e 
+r ef er ence  pl acehol der s  t o  or i gi nal  r ef er ences  f or  t he  l as t  pr oces s ed 
+t ext . 
+         _t er m_map  ( Di ct [ s t r ,  s t r ] ) :  I nt er nal  mappi ng  of  t er m  t okens  t o or i gi nal  t er ms  f or  t he  l as t  pr oces s ed  t ext  ( needs  r ef i nement ) . 
+     """ 
+     def  __i ni t __( 
+         s el f , 
+         bas e_model :  s t r  =  "s ent ence- t r ans f or mer s / LaBSE",  #  Def aul t bas e  model 
+         conf i g_pat h:  Opt i onal [ s t r ]  =  None, 
+         di s abl e_war ni ngs :  bool  =  Fal s e 
+     ) : 
+         """ 
+         I ni t i al i zes  t he  Bi bl eTokeni zer . 
+         Ar gs : 
+             bas e_model  ( s t r ) :  The  name  or  pat h  of  t he  Huggi ngFace 
+model  t o  us e  as  t he  bas e  t okeni zer . 
+             conf i g_pat h  ( Opt i onal [ s t r ] ) :  Pat h  t o  a  J SON  conf i gur at i on 
+f i l e.  I f  None,  us es  def aul t  s et t i ngs . 
+             di s abl e_war ni ngs  ( bool ) :  I f  Tr ue,  s uppr es s es  war ni ngs  f r om t hi s  t okeni zer  and  Huggi ngFace. 
+         """ 
+         s el f . _s et up_l oggi ng( di s abl e_war ni ngs ) 
+         s el f . conf i g  =  s el f . _l oad_conf i g( conf i g_pat h) 
+# Compi l e  r egex  pat t er ns  bas ed  on  t he  l oaded  conf i gur at i on 
+         s el f . ver s e_pat t er n_compi l ed  = 
+r e. compi l e( s el f . conf i g. ver s e_pat t er n,  f l ags =r e. I GNORECASE) 
+# Pat t er n  f or  mat chi ng  book  abbr evi at i ons  ( cas e- i ns ens i t i ve, 
+whol e  wor d) 
+         book_abbs _es caped  =  "| ". j oi n( r e. es cape( k)  f or  k  i n 
+s el f . conf i g. book_abbr evi at i ons . keys ( ) ) 
+         s el f . book_pat t er n_compi l ed  =  r e. compi l e( r "\ b( "  + 
+book_abbs _es caped  +  r ") \ b",  f l ags =r e. I GNORECASE) 
+# Cr eat e  t he  t er m  r epl acer  di ct i onar y 
+         s el f . t er m_r epl acer  =  { 
+             t er m. l ower ( ) :  f "[ {t er m. upper ( ) }] "  f or  t er m  i n s el f . conf i g. s peci al _t er ms 
+         } 
+# I ni t i al i ze  t he  bas e  Huggi ngFace  t okeni zer 
+         t r y: 
+             s el f . bas e_t okeni zer  =  Aut oTokeni zer . f r om_pr et r ai ned( 
+                 bas e_model , 
+                 us e_f as t =Tr ue,  #  Pr ef er  f as t  t okeni zer s  i f  avai l abl e                  t r us t _r emot e_code=Tr ue  #  Al l ow  l oadi ng  model s  wi t h cus t om  code  ( us e  wi t h  caut i on) 
+             ) 
+             l ogger . i nf o( f "I ni t i al i zed  bas e  t okeni zer :  {bas e_model }")          except  Except i on  as  e: 
+             l ogger . cr i t i cal ( f "Fai l ed  t o  l oad  bas e  t okeni zer 
+' {bas e_model }' :  {e}") 
+             r ai s e  Runt i meEr r or ( f "Coul d  not  l oad  bas e  t okeni zer : 
+{bas e_model }")  f r om  e 
+# I nt er nal  maps  t o  s t or e  or i gi nal  t ext  f or  pl acehol der s / t okens 
+f or  t he  *l as t *  pr oces s ed  t ext 
+         s el f . _ver s e_map:  Di ct [ s t r ,  s t r ]  =  {} 
+         s el f . _t er m_map:  Di ct [ s t r ,  s t r ]  =  {}  #  Not e:  Capt ur i ng  or i gi nal t er ms  needs  r ef i nement  i n  r epl acement  l ogi c 
+l ogger . i nf o( "Bi bl eTokeni zer  i ni t i al i zed  s ucces s f ul l y. ") 
+     def  _s et up_l oggi ng( s el f ,  di s abl e_war ni ngs :  bool ) : 
+         """Conf i gur es  l oggi ng  l evel s  bas ed  on  t he  di s abl e_war ni ngs 
+f l ag. """ 
+         i f  di s abl e_war ni ngs : 
+             l ogger . s et Level ( l oggi ng. ERROR) 
+             l oggi ng. get Logger ( "t r ans f or mer s ") . s et Level ( l oggi ng. ERROR) 
+# Opt i onal l y  s uppr es s  ot her  l i br ar i es  i f  t hey  ar e  t oo 
+noi s y 
+             # 
+l oggi ng. get Logger ( "s ome_ot her _l i br ar y") . s et Level ( l oggi ng. ERROR) 
+         el s e: 
+             l ogger . s et Level ( l oggi ng. I NFO) 
+l oggi ng. get Logger ( "t r ans f or mer s ") . s et Level ( l oggi ng. WARNI NG) 
+     def  _l oad_conf i g( s el f ,  conf i g_pat h:  Opt i onal [ s t r ] )  - > 
+Tokeni zer Conf i g: 
+         """ 
+         Loads  and  val i dat es  t he  conf i gur at i on  f r om  a  J SON  f i l e  or r et ur ns  t he  def aul t  conf i g. 
+         Ar gs : 
+             conf i g_pat h  ( Opt i onal [ s t r ] ) :  Pat h  t o  t he  J SON conf i gur at i on  f i l e. 
+         Ret ur ns : 
+             Tokeni zer Conf i g:  The  val i dat ed  conf i gur at i on  obj ect . 
+         Rai s es : 
+             Conf i gur at i onEr r or :  I f  t he  conf i g  f i l e  i s  not  f ound, 
+i nval i d  J SON,  or  val i dat i on  f ai l s . 
+         """ 
+         i f  conf i g_pat h: 
+             l ogger . i nf o( f "At t empt i ng  t o  l oad  conf i gur at i on  f r om 
+{conf i g_pat h}") 
+             t r y: 
+                 wi t h  open( conf i g_pat h,  ' r ' , 
+encodi ng=s el f . conf i g. encodi ng)  as  f : 
+                     dat a  =  j s on. l oad( f ) 
+# Val i dat e  t he  l oaded  dat a  us i ng  t he  Pydant i c  model 
+                 l oaded_conf i g  =  Tokeni zer Conf i g( **dat a) 
+                 l ogger . i nf o( "Conf i gur at i on  l oaded  and  val i dat ed 
+s ucces s f ul l y. ") 
+# Mer ge  l oaded  conf i g  wi t h  def aul t s ,  pr i or i t i zi ng 
+l oaded  val ues 
+# Thi s  ens ur es  any  mi s s i ng  keys  i n  t he  f i l e  us e  t he 
+def aul t  val ues 
+                 def aul t _conf i g  =  Tokeni zer Conf i g( )  #  Get  def aul t 
+i ns t ance  t o  mer ge  f r om 
+                 mer ged_conf i g_dat a  =  def aul t _conf i g. model _dump( )  # 
+St ar t  wi t h  def aul t s 
+                 mer ged_conf i g_dat a. updat e( l oaded_conf i g. model _dump( ) ) 
+# Updat e  wi t h  l oaded  val ues 
+                 mer ged_conf i g  =  Tokeni zer Conf i g( **mer ged_conf i g_dat a) 
+# Cr eat e  new  conf i g  obj ect  f r om  mer ged  dat a 
+                 r et ur n  mer ged_conf i g 
+             except  Fi l eNot FoundEr r or : 
+                 l ogger . er r or ( f "Conf i gur at i on  f i l e  not  f ound  at 
+{conf i g_pat h}") 
+                 r ai s e  Conf i gur at i onEr r or ( f "Conf i gur at i on  f i l e  not 
+f ound:  {conf i g_pat h}") 
+             except  j s on. J SONDecodeEr r or  as  e: 
+                 l ogger . er r or ( f "I nval i d  J SON  f or mat  i n  conf i gur at i on 
+f i l e  {conf i g_pat h}:  {e}") 
+                 r ai s e  Conf i gur at i onEr r or ( f "I nval i d  J SON  f or mat  i n conf i gur at i on  f i l e:  {e}")  f r om  e 
+             except  Val i dat i onEr r or  as  e: 
+                 l ogger . er r or ( f "Conf i gur at i on  val i dat i on  f ai l ed  f or {conf i g_pat h}:  {e. er r or s ( ) }") 
+                 r ai s e  Conf i gur at i onEr r or ( f "Conf i gur at i on  val i dat i on 
+f ai l ed:  {e. er r or s ( ) }")  f r om  e 
+             except  Except i on  as  e: 
+                 l ogger . er r or ( f "An  unexpect ed  er r or  occur r ed  whi l e 
+l oadi ng  conf i g  {conf i g_pat h}:  {e}") 
+                 r ai s e  Conf i gur at i onEr r or ( f "Unexpect ed  er r or  l oadi ng conf i gur at i on:  {e}")  f r om  e 
+         el s e: 
+             l ogger . war ni ng( "No  conf i gur at i on  pat h  pr ovi ded.  Us i ng def aul t  conf i gur at i on. ") 
+             r et ur n  Tokeni zer Conf i g( )  #  Ret ur n  def aul t  conf i g  obj ect 
+     def  nor mal i ze_t ext ( s el f ,  t ext :  s t r )  - >  s t r : 
+         """ 
+         Appl i es  a  s er i es  of  t r ans f or mat i ons  t o  t he  i nput  t ext : 
+1. St andar di zes  ver s e  r ef er ences . 
+2. Expands  book  abbr evi at i ons . 
+3. Repl aces  s peci al  t heol ogi cal  t er ms  wi t h  s t andar di zed 
+t okens . 
+         Popul at es  _ver s e_map  and  _t er m_map  dur i ng  t hi s  pr oces s . 
+         Ar gs : 
+             t ext  ( s t r ) :  The  r aw  i nput  t ext  s t r i ng. 
+         Ret ur ns : 
+             s t r :  The  pr oces s ed  t ext  wi t h  s t andar di zed  el ement s . 
+         Rai s es : 
+             Runt i meEr r or :  I f  a  cr i t i cal  er r or  occur s  dur i ng 
+nor mal i zat i on. 
+         """ 
+         i f  not  i s i ns t ance( t ext ,  s t r ) : 
+             l ogger . er r or ( f "I nput  t o  nor mal i ze_t ext  mus t  be  a  s t r i ng, but  r ecei ved  {t ype( t ext ) }") 
+             r ai s e  TypeEr r or ( "I nput  t ext  mus t  be  a  s t r i ng. ") 
+# Res et  maps  f or  t he  new  t ext s el f . _ver s e_map  =  {} 
+s el f . _t er m_map  =  {} 
+         t r y: 
+             l ogger . debug( "St ar t i ng  t ext  nor mal i zat i on. ")              or i gi nal _l en  =  l en( t ext ) 
+# St ep  1:  St andar di ze  ver s e  r ef er ences 
+# We  r epl ace  ver s es  f i r s t  t o  pr event  abbr evi at i on 
+expans i on  f r om  af f ect i ng  ver s e  pat t er ns . 
+             t ext _af t er _ver s es ,  ver s e_count  = 
+s el f . _r epl ace_ver s es ( t ext ) 
+             l ogger . debug( f "St ep  1  ( Ver s e  Repl acement )  compl et e. Repl aced  {ver s e_count }  r ef er ences . ") 
+# St ep  2:  Expand  book  abbr evi at i ons 
+# Appl i ed  t o  t he  t ext  af t er  ver s e  r epl acement . 
+             t ext _af t er _abbs  = 
+s el f . _expand_abbr evi at i ons ( t ext _af t er _ver s es ) 
+             l ogger . debug( "St ep  2  ( Abbr evi at i on  Expans i on)  compl et e. ") 
+# St ep  3:  Repl ace  s peci al  t heol ogi cal  t er ms 
+# Appl i ed  t o  t he  t ext  af t er  abbr evi at i on  expans i on. 
+             f i nal _t ext ,  t er m_count  = 
+s el f . _r epl ace_s peci al _t er ms ( t ext _af t er _abbs ) 
+             l ogger . debug( f "St ep  3  ( Ter m  Repl acement )  compl et e. Repl aced  {t er m_count }  t er ms . ") 
+             l ogger . i nf o( f "Text  nor mal i zat i on  f i ni s hed.  Or i gi nal l engt h:  {or i gi nal _l en},  Fi nal  l engt h:  {l en( f i nal _t ext ) }") 
+             r et ur n  f i nal _t ext 
+         except  Except i on  as  e: 
+             l ogger . cr i t i cal ( f "Text  nor mal i zat i on  f ai l ed:  {e}", 
+exc_i nf o=Tr ue)  #  Log  t r aceback 
+             r ai s e  Runt i meEr r or ( "Cr i t i cal  t ext  nor mal i zat i on  er r or . ") f r om  e 
+     def  _r epl ace_ver s es ( s el f ,  t ext :  s t r )  - >  Tupl e[ s t r ,  i nt ] : 
+         """ 
+         Fi nds  and  r epl aces  ver s e  r ef er ences  wi t h  s t andar di zed 
+pl acehol der s  ( e. g. ,  __VREF_001__) . 
+         St or es  a  mappi ng  f r om  pl acehol der  t o  or i gi nal  r ef er ence  i n _ver s e_map. 
+         Ar gs : 
+             t ext  ( s t r ) :  The  i nput  t ext . 
+         Ret ur ns : 
+             Tupl e[ s t r ,  i nt ] :  The  t ext  wi t h  ver s es  r epl aced  and  t he count  of  r epl acement s . 
+         """ 
+         count  =  0 
+         pr oces s ed_t ext  =  t ext 
+# Fi nd  al l  mat ches  f i r s t  t o  avoi d  i s s ues  wi t h  r epl acement 
+changi ng  i ndi ces 
+         mat ches  =  l i s t ( s el f . ver s e_pat t er n_compi l ed. f i ndi t er ( t ext ) ) 
+# Sor t  mat ches  by  s t ar t  pos i t i on  des cendi ng  t o  r epl ace  f r om 
+end  t o  begi nni ng 
+# Thi s  pr event s  ear l i er  r epl acement s  f r om  af f ect i ng  t he 
+i ndi ces  of  l at er  mat ches . 
+         s or t ed_mat ches  =  s or t ed( mat ches ,  key=l ambda  m:  m. s t ar t ( ) , r ever s e=Tr ue) 
+         f or  i ,  mat ch  i n  enumer at e( s or t ed_mat ches ) : 
+             f ul l _r ef  =  mat ch. gr oup( ) 
+# Cr eat e  a  uni que  pl acehol der  bas ed  on  t he  or der  of 
+appear ance  i n  t he  or i gi nal  t ext  ( af t er  s or t i ng) 
+# Us i ng  or i gi nal  mat ch  or der  mi ght  be  mor e  i nt ui t i ve,  but 
+r epl aci ng  f r om  end  r equi r es  s or t i ng. 
+# Let ' s  us e  t he  i ndex  f r om  t he  s or t ed  l i s t  f or  t he 
+pl acehol der . 
+# Pl acehol der  i ndex  r ef l ect s  t he  or der  i n  t he  *s or t ed* 
+l i s t  of  mat ches . 
+             pl acehol der  =  f "__VREF_{l en( s or t ed_mat ches )  -  1  - 
+i : 03d}__" 
+# St or e  t he  mappi ng  f r om  t he  pl acehol der  t o  t he  or i gi nal 
+r ef er ence 
+             s el f . _ver s e_map[ pl acehol der ]  =  f ul l _r ef 
+# Repl ace  t he  or i gi nal  r ef er ence  wi t h  t he  pl acehol der  i n 
+t he  t ext 
+             s t ar t ,  end  =  mat ch. s pan( ) 
+             pr oces s ed_t ext  =  pr oces s ed_t ext [ : s t ar t ]  +  pl acehol der  + pr oces s ed_t ext [ end: ] 
+             count  +=  1 
+         l ogger . debug( f "Repl aced  {count }  ver s e  r ef er ences  wi t h pl acehol der s . ") 
+         r et ur n  pr oces s ed_t ext ,  count 
+     def  _expand_abbr evi at i ons ( s el f ,  t ext :  s t r )  - >  s t r : 
+         """ 
+         Expands  book  abbr evi at i ons  t o  t hei r  f ul l  names  ( e. g. ,  "Gen"  - > "Genes i s ") . 
+         Us es  t he  compi l ed  book  pat t er n. 
+         Ar gs : 
+             t ext  ( s t r ) :  The  i nput  t ext  ( pot ent i al l y  wi t h  ver s e pl acehol der s ) . 
+         Ret ur ns : 
+             s t r :  The  t ext  wi t h  abbr evi at i ons  expanded. 
+         """ 
+         pr oces s ed_t ext  =  t ext 
+# Fi nd  al l  mat ches  f i r s t 
+         mat ches  =  l i s t ( s el f . book_pat t er n_compi l ed. f i ndi t er ( t ext ) ) 
+# Sor t  mat ches  by  s t ar t  pos i t i on  des cendi ng  t o  r epl ace  f r om 
+end  t o  begi nni ng 
+         s or t ed_mat ches  =  s or t ed( mat ches ,  key=l ambda  m:  m. s t ar t ( ) , 
+r ever s e=Tr ue) 
+         f or  mat ch  i n  s or t ed_mat ches : 
+             abbr ev  =  mat ch. gr oup( 1)  #  Capt ur e  t he  abbr evi at i on 
+# Get  t he  f ul l  name,  us i ng  t he  or i gi nal  abbr evi at i on  i f 
+not  f ound  ( s houl dn' t  happen  wi t h  r egex) 
+# Capi t al i ze  t he  mat ched  abbr evi at i on  t o  mat ch  t he 
+di ct i onar y  keys 
+             f ul l _name  = 
+s el f . conf i g. book_abbr evi at i ons . get ( abbr ev. capi t al i ze( ) ,  abbr ev) 
+             s t ar t ,  end  =  mat ch. s pan( ) 
+# Repl ace  t he  abbr evi at i on  wi t h  t he  f ul l  name 
+             pr oces s ed_t ext  =  pr oces s ed_t ext [ : s t ar t ]  +  f ul l _name  + pr oces s ed_t ext [ end: ] 
+l ogger . debug( "Expanded  book  abbr evi at i ons . ") r et ur n  pr oces s ed_t ext 
+     def  _r epl ace_s peci al _t er ms ( s el f ,  t ext :  s t r )  - >  Tupl e[ s t r ,  i nt ] : 
+         """ 
+         Repl aces  def i ned  s peci al  t heol ogi cal  t er ms  wi t h  s t andar di zed t okens  ( e. g. ,  "YHWH"  - >  "[ LORD] ") . 
+         Us es  t he  t er m_r epl acer  mappi ng.  St or es  mappi ng  i n  _t er m_map ( Not e:  Ref i nement  needed  f or  uni quenes s ) . 
+         Ar gs : 
+             t ext  ( s t r ) :  The  i nput  t ext  ( pot ent i al l y  wi t h  ver s e pl acehol der s  and  expanded  abbr evi at i ons ) . 
+         Ret ur ns : 
+             Tupl e[ s t r ,  i nt ] :  The  t ext  wi t h  s peci al  t er ms  r epl aced  and t he  count  of  r epl acement s . 
+         """ 
+         count  =  0 
+         pr oces s ed_t ext  =  t ext 
+# Sor t  t er ms  by  l engt h  des cendi ng  t o  handl e  cas es  wher e  one 
+t er m  i s  a  s ubs t r i ng  of  anot her 
+         s or t ed_t er ms  =  s or t ed( s el f . t er m_r epl acer . keys ( ) ,  key=l en, 
+r ever s e=Tr ue) 
+         f or  t er m_l ower  i n  s or t ed_t er ms : 
+             new_t oken  =  s el f . t er m_r epl acer [ t er m_l ower ] 
+# Cr eat e  a  r egex  pat t er n  f or  t he  s peci f i c  t er m  wi t h  wor d 
+boundar i es  and  cas e- i ns ens i t i vi t y 
+             pat t er n  =  r e. compi l e( r f "\ b{r e. es cape( t er m_l ower ) }\ b", 
+f l ags =r e. I GNORECASE) 
+# Fi nd  al l  occur r ences  of  t hi s  t er m  i n  t he  cur r ent  s t at e 
+of  t he  t ext 
+             mat ches  =  l i s t ( pat t er n. f i ndi t er ( pr oces s ed_t ext ) ) 
+# Repl ace  f r om  end  t o  s t ar t  t o  avoi d  i ndex  i s s ues 
+             f or  mat ch  i n  r ever s ed( mat ches ) : 
+                 s t ar t ,  end  =  mat ch. s pan( ) 
+                 or i gi nal _t er m_mat ch  =  mat ch. gr oup( )  #  Capt ur e  t he or i gi nal  mat ched  t ext  ( e. g. ,  "YHWH",  "yHwH") 
+# Not e:  St or i ng  t he  or i gi nal  t er m  mappi ng  her e. 
+# I f  mul t i pl e  or i gi nal  t er ms  map  t o  t he  s ame  t oken 
+( e. g. ,  "Lor d"  and  "LORD"  bot h  map  t o  "[ LORD] ") , 
+# t hi s  mappi ng  wi l l  onl y  s t or e  t he  l as t  one 
+encount er ed  f or  t hat  t oken. 
+# A  mor e  r obus t  appr oach  mi ght  i nvol ve  uni que  t okens 
+or  a  l i s t  of  or i gi nal  t er ms  per  t oken. 
+# For  now,  we' l l  j us t  s t or e  t he  mappi ng,  acknowl edgi ng 
+t hi s  l i mi t at i on. 
+                 s el f . _t er m_map[ new_t oken]  =  or i gi nal _t er m_mat ch  # 
+St or e  t he  mappi ng 
+# Check  i f  t her e' s  a  s pace  bef or e  t he  r epl acement  t o 
+avoi d  cr eat i ng  doubl e  s paces 
+                 pr ecedi ng_char  =  pr oces s ed_t ext [ s t ar t  -  1]  i f  s t ar t  > 0  el s e  ' ' 
+                 i f  pr ecedi ng_char . i s s pace( ) : 
+                      pr oces s ed_t ext  =  pr oces s ed_t ext [ : s t ar t ]  + 
+new_t oken  +  pr oces s ed_t ext [ end: ] 
+                 el s e: 
+# Add  a  s pace  bef or e  t he  t oken  i f  t her e  i s n' t  one, 
+t o  ens ur e  s epar at i on 
+                     pr oces s ed_t ext  =  pr oces s ed_t ext [ : s t ar t ]  +  "  "  + new_t oken  +  pr oces s ed_t ext [ end: ] 
+                 count  +=  1 
+l ogger . debug( f "Repl aced  {count }  s peci al  t er ms  wi t h  t okens . ") r et ur n  pr oces s ed_t ext ,  count 
+     def  get _s peci al _t oken_map( s el f )  - >  Di ct [ s t r ,  s t r ] : 
+         """ 
+         Ret ur ns  t he  mappi ng  of  s peci al  t okens  ( ver s e  pl acehol der s , t er m  t okens ) 
+         t o  t hei r  or i gi nal  t ext  s egment s  f r om  t he  *l as t *  pr oces s ed t ext . 
+         Not e:  Thi s  map  i s  popul at ed  dur i ng  t he  ` nor mal i ze_t ext `  cal l wi t hi n  ` t okeni ze` . 
+         Cal l  ` t okeni ze`  f i r s t ,  t hen  cal l  t hi s  met hod  t o  get  t he  map f or  t hat  s peci f i c  t ext . 
+         Ret ur ns : 
+             Di ct [ s t r ,  s t r ] :  A  di ct i onar y  mappi ng  t okens / pl acehol der s t o  or i gi nal  t ext . 
+         """ 
+# Combi ne  t he  ver s e  map  and  t er m  map 
+# Not e:  I f  a  t er m  t oken  acci dent al l y  mat ches  a  ver s e 
+pl acehol der  f or mat ,  t her e  coul d  be  a  conf l i ct . 
+# Thi s  i s  unl i kel y  wi t h  t he  cur r ent  pl acehol der  f or mat 
+"__VREF_###__"  and  t er m  t oken  "[ TERM] ". 
+         r et ur n  {**s el f . _ver s e_map,  **s el f . _t er m_map} 
+     def  t okeni ze( s el f ,  t ext :  s t r ,  r et ur n_t ens or s :  Opt i onal [ s t r ]  = None)  - >  Di ct [ s t r ,  Any] : 
+         """ 
+         Tokeni zes  t he  i nput  t ext  af t er  appl yi ng  nor mal i zat i on  s t eps . 
+         Ar gs : 
+             t ext  ( s t r ) :  The  i nput  t ext  t o  t okeni ze. 
+             r et ur n_t ens or s  ( Opt i onal [ s t r ] ) :  The  t ype  of  t ens or s  t o 
+r et ur n  ( ' pt ' ,  ' np' ,  ' j ax' ,  or  None) . 
+                                            I f  None,  us es  t he  def aul t f r om  t he  t okeni zer  conf i g. 
+         Ret ur ns : 
+             Di ct [ s t r ,  Any] :  A  di ct i onar y  cont ai ni ng: 
+- i nput _i ds :  Tokeni zed  s equence  i ds . 
+- at t ent i on_mas k:  Mas k  f or  val i d  t okens . 
+- t oken_t ype_i ds :  ( Opt i onal )  Segment  i ds ,  i f  t he  bas e 
+t okeni zer  pr ovi des  t hem. 
+- Not e:  ' s peci al _t oken_map'  i s  NOT  r et ur ned  her e.  Us e 
+get _s peci al _t oken_map( )  af t er  cal l i ng  t okeni ze. 
+         Rai s es : 
+             Runt i meEr r or :  I f  t okeni zat i on  f ai l s  af t er  nor mal i zat i on.          """ 
+         i f  not  i s i ns t ance( t ext ,  s t r ) : 
+             l ogger . er r or ( f "I nput  t o  t okeni ze  mus t  be  a  s t r i ng,  but 
+r ecei ved  {t ype( t ext ) }") 
+             r ai s e  TypeEr r or ( "I nput  t ext  mus t  be  a  s t r i ng. ") 
+         t r y: 
+             l ogger . i nf o( "St ar t i ng  t okeni zat i on  pr oces s . ") 
+# Appl y  t he  nor mal i zat i on  pi pel i ne 
+# Thi s  cal l  popul at es  s el f . _ver s e_map  and  s el f . _t er m_map 
+             pr oces s ed_t ext  =  s el f . nor mal i ze_t ext ( t ext ) 
+             l ogger . debug( f "Nor mal i zed  t ext  f or  t okeni zat i on: 
+{pr oces s ed_t ext }") 
+# Det er mi ne  t he  r et ur n  t ens or  t ype 
+             t ens or _t ype  =  r et ur n_t ens or s  i f  r et ur n_t ens or s  i s  not  None el s e  s el f . conf i g. out put _t ype 
+             i f  t ens or _t ype  not  i n  [ "pt ",  "np",  "j ax",  None] : 
+                  l ogger . war ni ng( f "I nval i d  r et ur n_t ens or s  t ype 
+' {t ens or _t ype}' .  Us i ng  def aul t  ' {s el f . conf i g. out put _t ype}' . ") 
+                  t ens or _t ype  =  s el f . conf i g. out put _t ype 
+# Per f or m  bas e  t okeni zat i on  us i ng  t he  Huggi ngFace 
+t okeni zer 
+             encodi ng  =  s el f . bas e_t okeni zer ( 
+                 pr oces s ed_t ext , 
+                 max_l engt h=s el f . conf i g. max_t okens , 
+                 paddi ng="l onges t ",  #  Pad  t o  t he  l onges t  s equence  i n 
+t he  bat ch  ( i f  bat chi ng)  or  max_l engt h 
+                 t r uncat i on=Tr ue,  #  Tr uncat e  s equences  l onger  t han max_l engt h 
+                 r et ur n_t ens or s =t ens or _t ype,  #  Ret ur n  s peci f i ed  t ens or t ype 
+# r et ur n_s peci al _t okens _mas k=Tr ue,  #  Can  add  t hi s  i f 
+needed 
+# r et ur n_t oken_t ype_i ds =Tr ue,  #  I ncl ude  t oken  t ype  i ds 
+i f  appl i cabl e 
+             ) 
+l ogger . i nf o( "Tokeni zat i on  compl et e. ") 
+# Removed  t he  cal l  t o  _col l ect _s peci al _t okens  her e. 
+# The  s peci al  t oken  map  i s  now  avai l abl e  vi a 
+s el f . get _s peci al _t oken_map( ) 
+# af t er  t hi s  met hod  i s  cal l ed. 
+             r et ur n  { 
+                 **encodi ng,  #  I ncl ude  i nput _i ds ,  at t ent i on_mas k,  et c. 
+# ' s peci al _t oken_map'  i s  not  r et ur ned  her e. 
+             } 
+except  Except i on  as  e: 
+             l ogger . cr i t i cal ( f "Tokeni zat i on  f ai l ed  af t er  nor mal i zat i on: {e}",  exc_i nf o=Tr ue) 
+             r ai s e  Runt i meEr r or ( "Fat al  t okeni zat i on  er r or . ")  f r om  e 
+     def  l oad_s t at e_di ct ( s el f ,  checkpoi nt _pat h:  s t r ,  **kwar gs )  - > 
+Di ct [ s t r ,  t or ch. Tens or ] : 
+         """ 
+         Saf el y  l oads  a  model  s t at e  di ct i onar y  f r om  a  checkpoi nt  f i l e. 
+         I ncl udes  mul t i pl e  r ecover y  at t empt s  f or  di f f er ent  f i l e  f or mat s or  l oadi ng  i s s ues . 
+         Ar gs : 
+             checkpoi nt _pat h  ( s t r ) :  Pat h  t o  t he  model  checkpoi nt  f i l e ( . pt ,  . pt h,  . s af et ens or s ) . 
+             **kwar gs :  Addi t i onal  keywor d  ar gument s  pas s ed  t o 
+t or ch. l oad  or  s af et ens or s . l oad_f i l e. 
+                       Common  ar gs  i ncl ude  ' map_l ocat i on' , 
+' wei ght s _onl y' . 
+         Ret ur ns : 
+             Di ct [ s t r ,  t or ch. Tens or ] :  The  l oaded  s t at e  di ct i onar y. 
+         Rai s es : 
+             Fi l eNot FoundEr r or :  I f  t he  checkpoi nt  f i l e  does  not  exi s t .              Runt i meEr r or :  I f  al l  l oadi ng  and  r ecover y  at t empt s  f ai l . 
+         """ 
+         i f  not  os . pat h. exi s t s ( checkpoi nt _pat h) : 
+             l ogger . er r or ( f "Checkpoi nt  f i l e  not  f ound: 
+{checkpoi nt _pat h}") 
+             r ai s e  Fi l eNot FoundEr r or ( 
+                 f "Checkpoi nt  f i l e  not  f ound  at :  {checkpoi nt _pat h}\ n"                  "Pl eas e  ens ur e  t he  pat h  i s  cor r ect  and  t he  f i l e 
+exi s t s . " 
+             ) 
+         l ogger . i nf o( f "At t empt i ng  t o  l oad  s t at e  di ct i onar y  f r om {checkpoi nt _pat h}") 
+         or i gi nal _er r or  =  None 
+# Us e  t he  conf i gur ed  devi ce  f or  map_l ocat i on  i f  not  s peci f i ed 
+i n  kwar gs 
+         map_l ocat i on  =  kwar gs . get ( "map_l ocat i on",  s el f . conf i g. devi ce)          s af et ens or s _devi ce  =  kwar gs . get ( "devi ce",  s el f . conf i g. devi ce) 
+# s af et ens or s  us es  ' devi ce'  ar g 
+# At t empt  s t andar d  t or ch. l oad  f i r s t 
+         t r y: 
+# Suppr es s  Sour ceChangeWar ni ng  i f  i t  occur s  dur i ng  l oadi ng 
+             wi t h  war ni ngs . cat ch_war ni ngs ( ) : 
+                 war ni ngs . s i mpl ef i l t er ( "i gnor e",  Sour ceChangeWar ni ng) 
+                 s t at e_di ct  =  t or ch. l oad( 
+                     checkpoi nt _pat h, 
+                     map_l ocat i on=map_l ocat i on, 
+                     wei ght s _onl y=kwar gs . get ( "wei ght s _onl y",  Tr ue) ,  # Pr ef er  wei ght s _onl y=Tr ue  f or  s ecur i t y 
+                     pi ckl e_modul e=kwar gs . get ( "pi ckl e_modul e",  pi ckl e) ,                      **{k:  v  f or  k,  v  i n  kwar gs . i t ems ( )  i f  k  not  i n 
+[ ' map_l ocat i on' ,  ' wei ght s _onl y' ,  ' pi ckl e_modul e' ,  ' devi ce' ] }  #  Pas s 
+ot her  kwar gs 
+                 ) 
+             l ogger . i nf o( "St andar d  t or ch. l oad  s ucces s f ul . ") 
+             r et ur n  s t at e_di ct 
+         except  Except i on  as  e: 
+             or i gi nal _er r or  =  e 
+             l ogger . war ni ng( f "St andar d  t or ch. l oad  f ai l ed:  {e}. 
+At t empt i ng  r ecover y  met hods . ") 
+# - - -  Recover y  At t empt s  - - - 
+# Def i ne  r ecover y  met hods  and  t hei r  s peci f i c 
+ar gument s / mes s ages 
+         r ecover y_at t empt s  =  [ 
+             ( s el f . _t r y_s af et ens or s _l oad,  {' pat h' :  checkpoi nt _pat h, 
+' devi ce' :  s af et ens or s _devi ce,  **kwar gs },  "Saf et ens or s  l oad  f ai l ed: For mat  mi s mat ch  or  ver s i on  i s s ue. ") ,              ( s el f . _t r y_mmap_l oad,  {' pat h' :  checkpoi nt _pat h, 
+' map_l ocat i on' :  map_l ocat i on,  **kwar gs },  "Memor y- mapped  l oadi ng 
+f ai l ed:  Fi l e  mi ght  be  cor r upt ed  or  i ncompat i bl e. ") , 
+             ( s el f . _t r y_l egacy_l oad,  {' pat h' :  checkpoi nt _pat h, 
+' map_l ocat i on' :  map_l ocat i on,  **kwar gs },  "Legacy  pi ckl e  l oad  f ai l ed: Uns uppor t ed  pi ckl e  pr ot ocol  or  dat a  cor r upt i on. ") , 
+         ] 
+         f or  i ,  ( f unc,  f unc_kwar gs ,  er r or _ms g)  i n 
+enumer at e( r ecover y_at t empt s ) : 
+             t r y: 
+                 l ogger . debug( f "At t empt i ng  r ecover y  s t ep  {i +1}: 
+{f unc. __name__}") 
+                 r es ul t  =  f unc( **f unc_kwar gs ) 
+                 i f  r es ul t  i s  not  None: 
+                     l ogger . war ni ng( f "Recover y  s t ep  {i +1} 
+( {f unc. __name__})  s ucceeded  wi t h  pot ent i al  war ni ng:  {er r or _ms g}") 
+                     r et ur n  r es ul t 
+                 l ogger . debug( f "Recover y  s t ep  {i +1}  ( {f unc. __name__}) r et ur ned  None. ") 
+             except  Except i on  as  r ecover y_e: 
+                 l ogger . debug( f "Recover y  s t ep  {i +1}  ( {f unc. __name__}) f ai l ed  wi t h  er r or :  {r ecover y_e}") 
+# I f  al l  r ecover y  at t empt s  f ai l 
+         l ogger . cr i t i cal ( f "Al l  r ecover y  at t empt s  f ai l ed  f or  checkpoi nt : {checkpoi nt _pat h}") 
+         r ai s e  Runt i meEr r or ( 
+             f "Fai l ed  t o  l oad  s t at e  di ct i onar y  f r om  {checkpoi nt _pat h} af t er  mul t i pl e  r ecover y  at t empt s . \ n" 
+             f "Or i gi nal  er r or :  ' {or i gi nal _er r or }' " 
+         )  f r om  or i gi nal _er r or 
+     def  _t r y_mmap_l oad( s el f ,  pat h:  s t r ,  **kwar gs )  - > 
+Opt i onal [ Di ct [ s t r ,  t or ch. Tens or ] ] : 
+         """At t empt  memor y- mapped  l oadi ng  us i ng  t or ch. l oad. """ 
+         t r y: 
+# Check  Pyt hon  ver s i on  compat i bi l i t y  f or  mmap  on  Wi ndows 
+# mmap  s uppor t  f or  t or ch. l oad  on  Wi ndows  was  i mpr oved  i n 
+r ecent  Pyt hon  ver s i ons 
+             i f  s ys . pl at f or m  ==  "wi n32"  and  s ys . ver s i on_i nf o  <  ( 3,  8) :                   l ogger . war ni ng( "Memor y- mapped  l oadi ng  on  Wi ndows  i s l es s  r el i abl e  i n  Pyt hon  ver s i ons  <  3. 8. ") 
+# Us e  t he  conf i gur ed  devi ce  f or  map_l ocat i on  i f  not 
+s peci f i ed  i n  kwar gs 
+             map_l ocat i on  =  kwar gs . get ( "map_l ocat i on", 
+s el f . conf i g. devi ce) 
+             wi t h  open( pat h,  "r b")  as  f : 
+# Suppr es s  Sour ceChangeWar ni ng  i f  i t  occur s 
+                 wi t h  war ni ngs . cat ch_war ni ngs ( ) : 
+                     war ni ngs . s i mpl ef i l t er ( "i gnor e", 
+Sour ceChangeWar ni ng) 
+                     r et ur n  t or ch. l oad( 
+                         f , 
+                         map_l ocat i on=map_l ocat i on, 
+                         mmap=Tr ue,  #  Enabl e  memor y  mappi ng 
+                          **{k:  v  f or  k,  v  i n  kwar gs . i t ems ( )  i f  k  ! = 
+' map_l ocat i on'  and  k  ! =  ' devi ce' }  #  Pas s  ot her  kwar gs ,  excl ude  devi ce                      ) 
+         except  Except i on  as  e: 
+             l ogger . debug( f "Memor y- mapped  l oadi ng  f ai l ed:  {e}")              r et ur n  None 
+     def  _t r y_s af et ens or s _l oad( s el f ,  pat h:  s t r ,  **kwar gs )  - > Opt i onal [ Di ct [ s t r ,  t or ch. Tens or ] ] : 
+         """At t empt  l oadi ng  f r om  s af et ens or s  f or mat . """ 
+         t r y: 
+# Saf et ens or s  l oad_f i l e  handl es  devi ce  mappi ng  vi a  devi ce 
+ar gument 
+             devi ce  =  kwar gs . get ( "devi ce",  s el f . conf i g. devi ce) 
+             r et ur n  s af e. l oad_f i l e( pat h,  devi ce=devi ce,  **{k:  v  f or  k, v  i n  kwar gs . i t ems ( )  i f  k  ! =  ' devi ce' })  #  Pas s  ot her  kwar gs ,  excl ude devi ce 
+         except  Except i on  as  e: 
+# s af et ens or s  mi ght  r ai s e  di f f er ent  er r or s  ( e. g. , 
+s af et ens or s _r us t . Saf et ens or Er r or ) 
+             l ogger . debug( f "Saf et ens or s  l oad  f ai l ed:  {e}") 
+             r et ur n  None 
+     def  _t r y_l egacy_l oad( s el f ,  pat h:  s t r ,  **kwar gs )  - > 
+Opt i onal [ Di ct [ s t r ,  t or ch. Tens or ] ] : 
+         """At t empt  l egacy  pi ckl e  f or mat  l oadi ng  us i ng 
+t or ch. s er i al i zat i on. pi ckl e_l oad. """ 
+         t r y: 
+             f r om  t or ch. s er i al i zat i on  i mpor t  pi ckl e_l oad 
+             wi t h  open( pat h,  "r b")  as  f : 
+# Us e  t he  conf i gur ed  devi ce  f or  map_l ocat i on  i f  not 
+s peci f i ed  i n  kwar gs 
+                 map_l ocat i on  =  kwar gs . get ( "map_l ocat i on", 
+s el f . conf i g. devi ce) 
+                 r et ur n  pi ckl e_l oad( 
+                     f , 
+                     map_l ocat i on=map_l ocat i on, 
+                     **{k:  v  f or  k,  v  i n  kwar gs . i t ems ( )  i f  k  ! = 
+' map_l ocat i on'  and  k  ! =  ' devi ce' }  #  Pas s  ot her  kwar gs ,  excl ude  devi ce                  ) 
+         except  Except i on  as  e: 
+             l ogger . debug( f "Legacy  l oadi ng  f ai l ed:  {e}") 
+             r et ur n  None 
+# - - -  Exampl e  Us age  - - - 
+i f  __name__  ==  "__mai n__": 
+# Cr eat e  a  dummy  conf i g  f i l e  f or  t es t i ng 
+     dummy_conf i g  =  { 
+         "max_t okens ":  128, 
+         "s peci al _t er ms ":  [ "Covenant ",  "Gr ace",  "Spi r i t "] ,  #  Added  mor e t er ms 
+         "book_abbr evi at i ons ":  { 
+             "Gen":  "Genes i s ", 
+             "Ex":  "Exodus ", 
+             "Ps ":  "Ps al ms ", 
+             "J n":  "J ohn", 
+             "Rev":  "Revel at i on", 
+             "Rom":  "Romans "  #  Added  Romans  f or  t es t i ng 
+         }, 
+         "devi ce":  "cpu"  #  For ce  CPU  f or  exampl e 
+     } 
+     conf i g_f i l ename  =  "t okeni zer _conf i g. j s on" 
+     t r y: 
+         wi t h  open( conf i g_f i l ename,  "w",  encodi ng="ut f - 8")  as  f :              j s on. dump( dummy_conf i g,  f ,  i ndent =4) 
+         pr i nt ( f "Cr eat ed  dummy  conf i g  f i l e:  {conf i g_f i l ename}") 
+# I ni t i al i ze  t okeni zer  wi t h  t he  dummy  conf i g 
+pr i nt ( "\ nI ni t i al i zi ng  Bi bl eTokeni zer  wi t h  conf i g. . . ") 
+t okeni zer  =  Bi bl eTokeni zer ( conf i g_pat h=conf i g_f i l ename) pr i nt ( "Tokeni zer  i ni t i al i zed. ") 
+# - - -  Tes t  Nor mal i zat i on  - - - 
+         t ext  =  "I n  Gen  1: 1  God  cr eat ed  t he  heavens  and  t he  ear t h.  Thi s i s  par t  of  t he  Covenant .  See  al s o  Rev  21: 1- 4  and  Rom  3: 16- 18.  YHWH  i s gr aci ous  and  s ent  Hi s  Spi r i t . " 
+         pr i nt ( f "\ nOr i gi nal  Text : \ n{t ext }") 
+nor mal i zed_t ext  =  t okeni zer . nor mal i ze_t ext ( t ext ) pr i nt ( f "\ nNor mal i zed  Text : \ n{nor mal i zed_t ext }") 
+# Get  t he  s peci al  t oken  map  af t er  nor mal i zat i on 
+         s peci al _map  =  t okeni zer . get _s peci al _t oken_map( )          pr i nt ( f "\ nSpeci al  Token  Map  ( af t er 
+nor mal i zat i on) : \ n{s peci al _map}") 
+# - - -  Tes t  Tokeni zat i on  - - - 
+         pr i nt ( "\ nTokeni zi ng  t he  or i gi nal  t ext . . . ") 
+         t okeni zed_out put  =  t okeni zer . t okeni ze( t ext , 
+r et ur n_t ens or s ="pt ")  #  Reques t  PyTor ch  t ens or s 
+         pr i nt ( f "\ nTokeni zed  Out put  ( i nput _i ds  s hape) : 
+{t okeni zed_out put [ ' i nput _i ds ' ] . s hape}") 
+         pr i nt ( f "Tokeni zed  Out put  ( at t ent i on_mas k  s hape) : 
+{t okeni zed_out put [ ' at t ent i on_mas k' ] . s hape}") 
+# The  s peci al  t oken  map  i s  NOT  i n  t he  t okeni zed_out put  di ct 
+anymor e. 
+# pr i nt ( f "\ nTokeni zed  Out put  ( s peci al _t oken_map) : 
+{t okeni zed_out put [ ' s peci al _t oken_map' ] }")  #  Thi s  l i ne  woul d  now  caus e an  er r or 
+# Ret r i eve  t he  s peci al  t oken  map  s epar at el y  af t er  t okeni zat i on s peci al _map_af t er _t okeni ze  =  t okeni zer . get _s peci al _t oken_map( ) pr i nt ( f "\ nSpeci al  Token  Map  ( r et r i eved  af t er 
+t okeni zat i on) : \ n{s peci al _map_af t er _t okeni ze}") 
+# Decode  t he  t okeni zed  I Ds  back  t o  t ext  ( excl udi ng  s peci al 
+t okens ) 
+# Not e:  The  bas e  t okeni zer  mi ght  not  under s t and  our  s peci al 
+t okens  ( __VREF_###__,  [ TERM] ) 
+# We  woul d  need  t o  add  t hem  t o  t he  bas e  t okeni zer ' s  vocabul ar y 
+or  handl e  t hem  s epar at el y. 
+# For  demons t r at i on,  l et ' s  decode  t he  I Ds  di r ect l y. 
+         decoded_t ext  = 
+t okeni zer . bas e_t okeni zer . decode( t okeni zed_out put [ ' i nput _i ds ' ] [ 0] , 
+s ki p_s peci al _t okens =Tr ue) 
+         pr i nt ( f "\ nDecoded  Text  ( s ki ppi ng  s peci al  t okens ) : 
+{decoded_t ext }") 
+# To  decode  i ncl udi ng  our  s peci al  t okens ,  t hey  woul d  need  t o 
+be  added  t o  t he  vocabul ar y. 
+# - - -  Tes t  Checkpoi nt  Loadi ng  - - - 
+# Cr eat e  a  dummy  s t at e  di ct 
+         dummy_s t at e_di ct  =  {"encoder . l ayer . 0. wei ght ":  t or ch. r andn( 768, 768) ,  "decoder . bi as ":  t or ch. r andn( 10) } 
+         dummy_checkpoi nt _pat h  =  "dummy_checkpoi nt . pt " 
+         dummy_s af et ens or s _pat h  =  "dummy_checkpoi nt . s af et ens or s " 
+# Save  dummy  checkpoi nt s 
+         t r y: 
+             t or ch. s ave( dummy_s t at e_di ct ,  dummy_checkpoi nt _pat h) 
+             pr i nt ( f "\ nCr eat ed  dummy  . pt  checkpoi nt : {dummy_checkpoi nt _pat h}") 
+         except  Except i on  as  e: 
+              pr i nt ( f "Fai l ed  t o  cr eat e  dummy  . pt  checkpoi nt :  {e}") 
+         t r y: 
+             s af e. s ave_f i l e( dummy_s t at e_di ct ,  dummy_s af et ens or s _pat h)              pr i nt ( f "Cr eat ed  dummy  . s af et ens or s  checkpoi nt : 
+{dummy_s af et ens or s _pat h}") 
+         except  Except i on  as  e: 
+              pr i nt ( f "Fai l ed  t o  cr eat e  dummy  . s af et ens or s  checkpoi nt : {e}") 
+         pr i nt ( f "\ nAt t empt i ng  t o  l oad  dummy  . pt  checkpoi nt  f r om {dummy_checkpoi nt _pat h}") 
+         t r y: 
+             l oaded_s t at e_di ct _pt  = 
+t okeni zer . l oad_s t at e_di ct ( dummy_checkpoi nt _pat h,  map_l ocat i on=' cpu' )              pr i nt ( ". pt  dummy  checkpoi nt  l oaded  s ucces s f ul l y. ") 
+# pr i nt ( l oaded_s t at e_di ct _pt . keys ( ) ) 
+         except  Fi l eNot FoundEr r or  as  e: 
+             pr i nt ( f "Er r or  l oadi ng  checkpoi nt :  {e}") 
+         except  Runt i meEr r or  as  e: 
+              pr i nt ( f "Runt i me  er r or  dur i ng  . pt  checkpoi nt  l oadi ng: {e}") 
+         pr i nt ( f "\ nAt t empt i ng  t o  l oad  dummy  . s af et ens or s  checkpoi nt f r om  {dummy_s af et ens or s _pat h}") 
+         t r y: 
+# Not e:  s af et ens or s  us es  ' devi ce'  ar gument ,  not 
+' map_l ocat i on' 
+             l oaded_s t at e_di ct _s f  = 
+t okeni zer . l oad_s t at e_di ct ( dummy_s af et ens or s _pat h,  devi ce=' cpu' ) 
+             pr i nt ( ". s af et ens or s  dummy  checkpoi nt  l oaded 
+s ucces s f ul l y. ") 
+# pr i nt ( l oaded_s t at e_di ct _s f . keys ( ) ) 
+         except  Fi l eNot FoundEr r or  as  e: 
+             pr i nt ( f "Er r or  l oadi ng  checkpoi nt :  {e}") 
+         except  Runt i meEr r or  as  e: 
+              pr i nt ( f "Runt i me  er r or  dur i ng  . s af et ens or s  checkpoi nt l oadi ng:  {e}") 
+# Tes t  l oadi ng  a  non- exi s t ent  f i l e 
+         pr i nt ( "\ nAt t empt i ng  t o  l oad  a  non- exi s t ent  checkpoi nt . . . ")          t r y: 
+             t okeni zer . l oad_s t at e_di ct ( "non_exi s t ent _checkpoi nt . pt ")          except  Fi l eNot FoundEr r or  as  e: 
+             pr i nt ( f "Caught  expect ed  er r or :  {e}") 
+         except  Except i on  as  e: 
+             pr i nt ( f "Caught  unexpect ed  er r or :  {e}") 
+     f i nal l y: 
+# Cl ean  up  dummy  f i l es 
+         i f  os . pat h. exi s t s ( conf i g_f i l ename) : 
+             os . r emove( conf i g_f i l ename) 
+             pr i nt ( f "\ nRemoved  dummy  conf i g  f i l e:  {conf i g_f i l ename}")          i f  os . pat h. exi s t s ( dummy_checkpoi nt _pat h) : 
+              os . r emove( dummy_checkpoi nt _pat h) 
+              pr i nt ( f "Removed  dummy  . pt  checkpoi nt : 
+{dummy_checkpoi nt _pat h}") 
+         i f  os . pat h. exi s t s ( dummy_s af et ens or s _pat h) : 
+              os . r emove( dummy_s af et ens or s _pat h) 
+              pr i nt ( f "Removed  dummy  . s af et ens or s  checkpoi nt : 
+{dummy_s af et ens or s _pat h}") 
