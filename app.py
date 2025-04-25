@@ -27,7 +27,7 @@ app = FastAPI(
 )
 
 DOWNLOAD_DIR = "downloads"
-DATA_FILE = "kjv_processed.json"
+DATA_FILE = "data/processed/kjv_structured1.json"
 
 # Load the Bible data
 def load_bible_data() -> Dict:
@@ -160,23 +160,20 @@ async def get_verse(book: str, chapter: int, verse: int):
     """
     Retrieve a specific verse from the Bible.
     """
-    try:
-        if book in bible_data:
-            chapter_data = bible_data[book].get(str(chapter))
-            if chapter_data:
-                verse_text = chapter_data.get(str(verse))
-                if verse_text:
-                    logger.info(f"Retrieved verse: {book} {chapter}:{verse}")
-                    return {
-                        "book": book,
-                        "chapter": chapter,
-                        "verse": verse,
-                        "text": verse_text
-                    }
-        raise HTTPException(status_code=404, detail="Verse not found")
-    except Exception as e:
-        logger.error(f"Error retrieving verse: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if book in bible_data:
+        chapter_data = bible_data[book].get(str(chapter))
+        if chapter_data:
+            verse_text = chapter_data.get(str(verse))
+            if verse_text:
+                logger.info(f"Retrieved verse: {book} {chapter}:{verse}")
+                return {
+                    "book": book,
+                    "chapter": chapter,
+                    "verse": verse,
+                    "text": verse_text
+                }
+    logger.error(f"Verse not found: {book} {chapter}:{verse}")
+    raise HTTPException(status_code=404, detail="Verse not found")
 
 @app.get("/api/v1/chapter/{book}/{chapter}", response_model=ChapterResponse)
 async def get_chapter(book: str, chapter: int):

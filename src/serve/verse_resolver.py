@@ -319,7 +319,7 @@ class VerseResolver:
                 Path(__file__).parent.parent.parent
                 / "data"
                 / "processed"
-                / "kjv_processed.json"
+                / "kjv_structured1.json"
             )
 
         try:
