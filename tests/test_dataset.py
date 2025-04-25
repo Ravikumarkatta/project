@@ -11,7 +11,7 @@ from src.data.dataset import (
     create_bible_dataloaders,
     create_instruction_dataloaders,
 )
-from src.data.tokenization import BiblicalTokenizer
+from src.data.tokenization import BibleTokenizer
 
 
 @pytest.fixture
