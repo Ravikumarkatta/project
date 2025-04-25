@@ -1,0 +1,82 @@
+[
+  {
+    "id": "q1",
+    "question": "What does the Bible teach about salvation?",
+    "expected_keywords": ["grace", "faith", "Christ", "justification"],
+    "denominational_context": "general",
+    "type": "doctrinal",
+    "difficulty": "basic"
+  },
+  {
+    "id": "q2",
+    "question": "How does the Catholic Church understand the role of Mary?",
+    "expected_keywords": ["Mother of God", "Theotokos", "intercession", "immaculate conception"],
+    "denominational_context": "catholic",
+    "type": "denominational",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "q3",
+    "question": "What is the Reformed perspective on predestination?",
+    "expected_keywords": ["election", "sovereignty", "Calvinism", "unconditional"],
+    "denominational_context": "reformed",
+    "type": "doctrinal",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "q4",
+    "question": "What does it mean to be born again according to John 3?",
+    "expected_keywords": ["Spirit", "water", "kingdom of God", "Nicodemus"],
+    "denominational_context": "general",
+    "type": "exegetical",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "q5",
+    "question": "How can I know God's will for my life?",
+    "expected_keywords": ["prayer", "Scripture", "counsel", "peace"],
+    "denominational_context": "general",
+    "type": "pastoral",
+    "difficulty": "basic"
+  },
+  {
+    "id": "q6",
+    "question": "What are the differences between Arminianism and Calvinism?",
+    "expected_keywords": ["free will", "sovereignty", "election", "perseverance"],
+    "denominational_context": "comparative",
+    "type": "theological",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "q7",
+    "question": "What does the Bible say about homosexuality?",
+    "expected_keywords": ["Romans 1", "Leviticus", "sexual ethics", "pastoral care"],
+    "denominational_context": "sensitive",
+    "type": "ethical",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "q8",
+    "question": "How do I pray effectively?",
+    "expected_keywords": ["persistence", "faith", "Lord's Prayer", "intercession"],
+    "denominational_context": "general",
+    "type": "practical",
+    "difficulty": "basic"
+  },
+  {
+    "id": "q9",
+    "question": "What does the Bible teach about the Trinity?",
+    "expected_keywords": ["Father", "Son", "Holy Spirit", "one God", "three persons"],
+    "denominational_context": "general",
+    "type": "doctrinal",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "q10",
+    "question": "What is the significance of baptism?",
+    "expected_keywords": ["covenant", "initiation", "identification", "symbolic"],
+    "denominational_context": "varied",
+    "type": "sacramental",
+    "difficulty": "intermediate"
+  }
+]
