@@ -197,8 +197,8 @@ async def search_bible(q: str, book: Optional[str] = None):
     """
     Search the Bible text.
     """
-    if not q:
-        raise HTTPException(status_code=400, detail="Search query required")
+    if not q or q.strip() == "":
+        raise HTTPException(status_code=400, detail="Search query cannot be empty")
     
     results = []
     try:
