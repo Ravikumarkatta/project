@@ -285,12 +285,12 @@ def create_bible_dataloaders(
 
             # Get padding token ID from the tokenizer
             # Assuming the base tokenizer has a pad_token_id
-            pad_token_id = self.tokenizer.base_tokenizer.pad_token_id
+            pad_token_id = tokenizer.base_tokenizer.pad_token_id
             if pad_token_id is None:
                  # Fallback if pad_token_id is not defined (e.g., for some models like GPT-2)
                  # Using the EOS token ID or a specific unused ID might be necessary depending on the model
                  # For BERT-like models, pad_token_id is usually 0. Let's default to 0 if None.
-                 pad_token_id = self.tokenizer.base_tokenizer.eos_token_id if self.tokenizer.base_tokenizer.eos_token_id is not None else 0
+                 pad_token_id = tokenizer.base_tokenizer.eos_token_id if tokenizer.base_tokenizer.eos_token_id is not None else 0
                  logger.warning(f"Tokenizer does not have a pad_token_id. Using {pad_token_id} for padding.")
 
 
@@ -391,9 +391,9 @@ def create_instruction_dataloaders(
             labels = [x['labels'] for x in batch]
 
             # Get padding token ID from the tokenizer
-            pad_token_id = self.tokenizer.base_tokenizer.pad_token_id
+            pad_token_id = tokenizer.base_tokenizer.pad_token_id
             if pad_token_id is None:
-                 pad_token_id = self.tokenizer.base_tokenizer.eos_token_id if self.tokenizer.base_tokenizer.eos_token_id is not None else 0
+                 pad_token_id = tokenizer.base_tokenizer.eos_token_id if tokenizer.base_tokenizer.eos_token_id is not None else 0
                  logger.warning(f"Tokenizer does not have a pad_token_id. Using {pad_token_id} for padding.")
 
 
