@@ -2,13 +2,11 @@ import json
 import logging
 import os
 import random
-from typing import Any, Dict, List, Optional, Tuple  # Import Any for Dict return type
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-# We expect a BibleTokenizer, which wraps a PreTrainedTokenizer, not just any PreTrainedTokenizer
-# from transformers import PreTrainedTokenizer # Keep this import if you still want the type hint, but the logic uses BibleTokenizer methods
 from src.data.tokenization import BibleTokenizer  # Import the specific tokenizer class
 
 # Set up logging
@@ -32,7 +30,8 @@ class BibleDataset(Dataset):
         Args:
             bible_path: Path to Bible JSON file.
             tokenizer: BibleTokenizer instance to use.
-            max_length: Maximum sequence length (Note: BibleTokenizer uses its config's max_tokens).
+            max_length: Maximum sequence length (Note: BibleTokenizer uses
+                        its config's max_tokens).
             sample_ratio: Ratio of verses to sample (0.0-1.0).
 
         Raises:
@@ -146,7 +145,8 @@ class BibleInstructionDataset(Dataset):
         Args:
             data_path: Path to instruction JSON file.
             tokenizer: BibleTokenizer instance to use.
-            max_length: Maximum sequence length (Note: BibleTokenizer uses its config's max_tokens).
+            max_length: Maximum sequence length (Note: BibleInstructionDataset
+                        uses tokenizer config).
             instruction_types: If provided, filter by these instruction types.
 
         Raises:
@@ -279,20 +279,21 @@ def create_bible_dataloaders(
     """
     Create DataLoaders for Bible training and validation with proper collation.
 
-    Args:
-        train_path: Path to training Bible data.
-        val_path: Path to validation Bible data.
-        tokenizer: BibleTokenizer instance to use.
-        batch_size: Batch size for DataLoaders.
-        max_length: Maximum sequence length (Note: BibleDataset uses tokenizer config).
-        num_workers: Number of workers for data loading.
+        Args:
+            train_path: Path to training Bible data.
+            val_path: Path to validation Bible data.
+            tokenizer: BibleTokenizer instance to use.
+            batch_size: Batch size for DataLoaders.
+            max_length: Maximum sequence length (Note: BibleDataset uses
+                        tokenizer config).
+            num_workers: Number of workers for data loading.
 
-    Returns:
-        Tuple of (train_loader, val_loader)
+        Returns:
+            Tuple of (train_loader, val_loader)
 
-    Raises:
-        RuntimeError: If dataloader creation fails.
-    """
+        Raises:
+            RuntimeError: If dataloader creation fails.
+        """
     try:
         # Pass max_length to the dataset, although the tokenizer primarily controls it
         train_dataset = BibleDataset(train_path, tokenizer, max_length=max_length)
@@ -385,21 +386,22 @@ def create_instruction_dataloaders(
     """
     Create DataLoaders for instruction fine-tuning with proper collation.
 
-    Args:
-        train_path: Path to training instruction data.
-        val_path: Path to validation instruction data.
-        tokenizer: BibleTokenizer instance to use.
-        batch_size: Batch size for DataLoaders.
-        max_length: Maximum sequence length (Note: BibleInstructionDataset uses tokenizer config).
-        instruction_types: Optional list of instruction types to filter.
-        num_workers: Number of workers for data loading.
+        Args:
+            train_path: Path to training instruction data.
+            val_path: Path to validation instruction data.
+            tokenizer: BibleTokenizer instance to use.
+            batch_size: Batch size for DataLoaders.
+            max_length: Maximum sequence length (Note: BibleInstructionDataset
+                        uses tokenizer config).
+            instruction_types: Optional list of instruction types to filter.
+            num_workers: Number of workers for data loading.
 
-    Returns:
-        Tuple of (train_loader, val_loader)
+        Returns:
+            Tuple of (train_loader, val_loader)
 
-    Raises:
-        RuntimeError: If dataloader creation fails.
-    """
+        Raises:
+            RuntimeError: If dataloader creation fails.
+        """
     try:
         # Pass max_length to the dataset, although the tokenizer primarily controls it
         train_dataset = BibleInstructionDataset(

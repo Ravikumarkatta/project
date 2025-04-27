@@ -29,8 +29,7 @@ import json
 import logging
 import os
 import re
-import sys
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Constants
 BIBLE_BOOKS = {

@@ -1,12 +1,26 @@
-# Development Dependencies
+# Development Dependencies (Generated from pip freeze)
 -r requirements.txt
 
-# Testing
-pytest-benchmark==4.0.0
-coverage==7.2.0
+# Testing Additions
+pytest-benchmark==4.0.0  # Kept pinned, major update pending
+coverage==7.2.0  # Kept pinned, major update pending
+py-cpuinfo==9.0.0  # Transitive dep of pytest-benchmark
 
-# Security
-bandit==1.7.5
+# Security Tools
+bandit==1.8.3  # Updated
+# Transitive deps of bandit (already covered: PyYAML, stevedore, rich, colorama)
+GitPython==3.1.44
+gitdb==4.0.12
+smmap==5.0.2
+stevedore==5.4.1
+pbr==6.1.1
 
-# Development Tools
-pre-commit==3.3.0
+# Development Workflow Tools
+pre-commit==3.3.0  # Kept pinned, major update pending
+# Transitive deps of pre-commit
+cfgv==3.4.0
+identify==2.6.10
+nodeenv==1.9.1
+virtualenv==20.30.0
+distlib==0.3.9
+platformdirs==4.3.7

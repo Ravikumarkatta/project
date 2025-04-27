@@ -4,7 +4,6 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import h5py
@@ -12,7 +11,6 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +19,14 @@ logger = logging.getLogger(__name__)
 class EmbeddingConfig:
     """Configuration for embedding generation."""
 
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    model_name: str = (
+        "sentence-transformers/all-MiniLM-L6-v2"
+    )
     max_length: int = 512
     batch_size: int = 32
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: str = (
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
     pooling_strategy: str = "mean"  # mean, cls, or max
     normalize: bool = True
     cache_dir: Optional[str] = None
@@ -138,7 +140,8 @@ class EmbeddingPipeline:
                 f.create_dataset("references", data=ref_bytes)
 
             logger.info(
-                f"Saved {len(embeddings)} verse embeddings to {self.verse_index_path}"
+                f"Saved {len(embeddings)} verse embeddings to "
+                f"{self.verse_index_path}"
             )
         except Exception as e:
             logger.error(f"Error saving verse embeddings: {e}")
@@ -165,7 +168,8 @@ class EmbeddingPipeline:
                 f.create_dataset("metadata", data=metadata_bytes)
 
             logger.info(
-                f"Saved {len(embeddings)} commentary embeddings to {self.commentary_index_path}"
+                f"Saved {len(embeddings)} commentary embeddings to "
+                f"{self.commentary_index_path}"
             )
         except Exception as e:
             logger.error(f"Error saving commentary embeddings: {e}")
@@ -202,7 +206,10 @@ class EmbeddingPipeline:
             return np.array([]), []
 
     def search_similar(
-        self, query: str, index: str = "verse", top_k: int = 5
+        self,
+        query: str,
+        index: str = "verse",
+        top_k: int = 5
     ) -> List[Tuple[float, Union[str, Dict]]]:
         """Search for similar texts using embeddings.
 

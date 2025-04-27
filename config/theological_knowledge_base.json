@@ -1,0 +1,43 @@
+{
+  "doctrinal_positions": {
+    "catholic": {
+      "nicene_creed": {
+        "key_statements": [
+          "I believe in one God, the Father, the Almighty, maker of heaven and earth, and of all things visible and invisible.",
+          "And in one Lord Jesus Christ, the only begotten Son of God, begotten of the Father before all worlds."
+        ],
+        "keywords": ["Trinity", "Incarnation", "Redemption"]
+      }
+    },
+    "protestant": {
+      "apostles_creed": {
+        "key_statements": [
+          "I believe in God, the Father almighty, maker of heaven and earth, and of all things visible and invisible.",
+          "And in Jesus Christ, his only begotten Son, our Lord."
+        ],
+        "keywords": ["Solus Christus", "Sola Scriptura", "Sola Fide"]
+      }
+    },
+    "orthodox": {
+      "athanasian_creed": {
+        "key_statements": [
+          "I believe in one God, the Father Almighty, maker of heaven and earth, and of all things visible and invisible.",
+          "And in one Lord, Jesus Christ, the only-begotten Son of God, begotten of the Father before all worlds."
+        ],
+        "keywords": ["Hypostatic Union", "Energetic Union", "Theosis"]
+      }
+    }
+  },
+  "historical_debates": [
+    {
+      "topic": "Filioque Controversy",
+      "catholic_position": "The addition of 'and the Son' (Filioque) to the Nicene Creed is necessary for the full expression of the Trinity.",
+      "orthodox_position": "The Filioque is a later addition and not part of the original Nicene Creed."
+    },
+    {
+      "topic": "Predestination",
+      "calvinist_position": "Predestination is the doctrine that God has foreordained the salvation or damnation of all men from eternity.",
+      "augustinian_position": "Predestination is the foreknowledge of God concerning the eternal purpose and destiny of men."
+    }
+  ]
+}

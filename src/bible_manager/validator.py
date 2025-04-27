@@ -3,12 +3,11 @@
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
 # Corrected import for Optional
-from typing import Dict, List, Optional, Set
+from typing import List, Optional
 
 
 @dataclass

@@ -325,7 +325,7 @@ class PastoralSensitivity:
         # Ensure care_guidelines is a dictionary
         if not isinstance(self.care_guidelines, dict):
             self.logger.warning(
-                f"Care guidelines structure is invalid (not a dict). Skipping application."
+                "Care guidelines structure is invalid (not a dict). Skipping application."
             )
             return {"score": score, "suggestions": suggestions}
 

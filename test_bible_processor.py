@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from kjv_preprocessor import BIBLE_BOOKS, BibleProcessor
+from kjv_preprocessor import BibleProcessor
 
 
 class TestBibleProcessor(unittest.TestCase):

@@ -1,7 +1,6 @@
-import json
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import requests
 from fastapi import HTTPException

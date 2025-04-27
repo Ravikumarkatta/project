@@ -2,8 +2,6 @@
 # scripts/verify_biblical_data.py
 
 """Script to verify the integrity of biblical data."""
-import json
-import logging
 import sys
 from pathlib import Path
 

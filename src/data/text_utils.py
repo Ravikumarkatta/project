@@ -3,7 +3,7 @@ Utility functions for text processing in biblical data preparation.
 """
 import re
 import unicodedata
-from typing import List, Optional, Union
+from typing import List, Union
 
 
 def clean_text(text: str) -> str:

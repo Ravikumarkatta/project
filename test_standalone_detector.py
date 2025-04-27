@@ -1,4 +1,4 @@
-from standalone_verse_detector import StandaloneVerseDetector, VerseReference
+from standalone_verse_detector import StandaloneVerseDetector
 
 
 def test_detector():

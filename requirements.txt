@@ -1,46 +1,79 @@
-﻿# Core Dependencies (Python 3.12+)
-
-# Web Framework
-fastapi>=0.100.0
-uvicorn==0.15.0
-pydantic>=2.0.0
-
-# Machine Learning (Lite)
-torch --index-url https://download.pytorch.org/whl/cpu
-transformers
-numpy
-
-# Data Processing
-pandas==2.0.3
-requests==2.31.0
-
-# Security
-pyjwt==2.8.0
-passlib[bcrypt]==1.7.4
-
-# Monitoring (Essential Only)
-psutil
-
-# Testing (Core)
-pytest==7.0.0
-pytest-asyncio==0.15.0
-pydantic
-httpx>=0.24.0  # Required by TestClient
-
-# Code Quality
-ruff==0.1.0
-
-# Utilities
+﻿# Core Dependencies (Generated from pip freeze)
+annotated-types==0.7.0
+anyio==4.9.0
+asgiref==3.8.1
+atomicwrites==1.4.1 # Transitive dep of pytest 7.0.0
+attrs==25.3.0
+bcrypt==4.3.0  # Extracted from passlib[bcrypt]
+beautifulsoup4==4.13.4
+certifi==2025.1.31
+charset-normalizer==3.4.1
+click==8.1.8
+colorama==0.4.6
+fastapi==0.115.12
+filelock==3.18.0
+fsspec==2025.3.2
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+huggingface-hub==0.30.2
+idna==3.10
+iniconfig==2.1.0
+Jinja2==3.1.6
+joblib==1.4.2
+jsonschema==4.23.0
+jsonschema-specifications==2025.4.1
+lxml==5.4.0
+markdown-it-py==3.0.0
+MarkupSafe==3.0.2
+mdurl==0.1.2
+mpmath==1.3.0
+mypy==1.15.0
+mypy_extensions==1.1.0
+networkx==3.4.2
+nltk==3.9.1
+numpy==1.26.4
+packaging==25.0
+pandas==2.0.3  # Kept pinned, major update pending
+passlib==1.7.4
+pillow==11.2.1
+pluggy==1.5.0
+psutil==7.0.0
+py==1.11.0
+pydantic==2.11.3
+pydantic_core==2.33.1
+Pygments==2.19.1
+PyJWT==2.10.1  # Updated
+pytest==7.0.0  # Kept pinned, major update pending
+pytest-asyncio==0.15.0  # Kept pinned, major update pending
+python-dateutil==2.9.0.post0
 python-dotenv==1.0.0
-
-# AI Features
-sentence-transformers==3.1.0
-
-mypy>=1.0.0
-nltk
-jsonschema
-
-beautifulsoup4
-lxml
-
-python-multipart
+python-multipart==0.0.20
+pytz==2025.2
+PyYAML==6.0.2
+referencing==0.36.2
+regex==2024.11.6
+requests==2.32.3  # Updated
+rich==14.0.0
+rpds-py==0.24.0
+ruff==0.11.7  # Updated
+safetensors==0.5.3
+scikit-learn==1.6.1
+scipy==1.15.2
+sentence-transformers==3.1.0  # Kept pinned, major update pending
+six==1.17.0
+sniffio==1.3.1
+soupsieve==2.7
+starlette==0.46.2
+sympy==1.13.3
+threadpoolctl==3.6.0
+tokenizers==0.21.1
+tomli==2.2.1
+torch==2.7.0
+tqdm==4.67.1
+transformers==4.51.3
+typing-inspection==0.4.0
+typing_extensions==4.13.2
+tzdata==2025.2
+urllib3==2.4.0
+uvicorn==0.15.0  # Kept pinned, major update pending

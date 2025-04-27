@@ -21,7 +21,6 @@ def test_home_endpoint(client):
 
 def test_list_bibles_no_downloads(client, monkeypatch, tmp_path):
     """Test listing bibles when no downloads exist."""
-    import os
 
     # Mock the DOWNLOAD_DIR to a temporary directory
     monkeypatch.setattr("app.DOWNLOAD_DIR", str(tmp_path))
@@ -33,7 +32,6 @@ def test_list_bibles_no_downloads(client, monkeypatch, tmp_path):
 
 def test_list_bibles_with_downloads(client, monkeypatch, tmp_path):
     """Test listing bibles when downloads exist."""
-    import os
 
     # Mock the DOWNLOAD_DIR to a temporary directory
     monkeypatch.setattr("app.DOWNLOAD_DIR", str(tmp_path))

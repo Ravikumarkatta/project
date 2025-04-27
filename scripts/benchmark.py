@@ -8,7 +8,7 @@ import logging
 import os
 import random
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 # Configure logging
 logging.basicConfig(

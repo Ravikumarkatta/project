@@ -8,7 +8,7 @@ Provides detailed validation for specific theological doctrines.
 import json
 import re  # Ensure re is imported
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from src.utils.logger import setup_logger  # Or get_logger if standardizing
 

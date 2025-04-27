@@ -1,5 +1,5 @@
 # src/model/architecture.py
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -68,7 +68,6 @@ class BiblicalTransformerLayer(nn.Module):
     def __init__(self, config: BiblicalTransformerConfig):
         super().__init__()
         self.config = config
-        # Fix: Convert dictionary to string for TheologicalValidator
         theological_config = {
             "min_score": 0.9,
             "theological_terms": [
@@ -80,7 +79,8 @@ class BiblicalTransformerLayer(nn.Module):
                 "christ",
             ],
         }
-        self.validator = TheologicalValidator(str(theological_config))
+        # Corrected: Pass the dictionary directly to TheologicalValidator
+        self.validator = TheologicalValidator(theological_config)
 
         # Self-attention mechanism
         self.attention = MultiHeadAttention(
@@ -163,7 +163,6 @@ class BiblicalTransformer(nn.Module):
         super().__init__()
         self.config = config
         self.tokenizer = tokenizer  # Add tokenizer
-        # Fix: Convert dictionary to string for TheologicalValidator
         theological_config = {
             "min_score": 0.9,
             "theological_terms": [
@@ -175,7 +174,8 @@ class BiblicalTransformer(nn.Module):
                 "christ",
             ],
         }
-        self.validator = TheologicalValidator(str(theological_config))
+        # Corrected: Pass the dictionary directly to TheologicalValidator
+        self.validator = TheologicalValidator(theological_config)
 
         # Core embeddings
         self.token_embedding = TokenEmbeddings(

@@ -1,5 +1,4 @@
 # src/model/tests/test_attention.py
-import pytest
 import torch
 
 from src.model.attention import BiblicalSelfAttention, MultiHeadAttention

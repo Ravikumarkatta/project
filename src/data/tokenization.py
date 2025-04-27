@@ -5,14 +5,13 @@ import pickle
 import re
 import sys  # Import sys for Python version check
 import warnings  # Import warnings to catch SourceChangeWarning
-from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import safetensors.torch as safe
 import torch
 from pydantic import BaseModel, ValidationError  # Import ValidationError
-from torch.serialization import SourceChangeWarning, load
-from transformers import AutoTokenizer, PreTrainedTokenizer
+from torch.serialization import SourceChangeWarning
+from transformers import AutoTokenizer
 from transformers import logging as hf_logging
 
 # --- Configuration and Setup ---

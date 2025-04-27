@@ -1,14 +1,12 @@
 import json
 import logging
 import os
-import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import psutil
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, Response, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from src.bible_manager.bible_handler import BibleHandler

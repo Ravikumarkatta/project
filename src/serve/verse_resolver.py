@@ -5,12 +5,11 @@ Handles different translations and provides context.
 """
 
 import json
-import os
 import re
 
 # 3.1, 3.2: Import Path and Optional
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 # Assuming VerseReference is defined elsewhere, e.g., in bible_manager
 # If not, define a placeholder or import correctly
@@ -275,11 +274,8 @@ class VerseResolver:
         return None
 
 
-import json
 import logging
-import re
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 
 class VerseReference:

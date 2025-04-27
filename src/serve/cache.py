@@ -8,7 +8,6 @@ Supports Redis for distributed caching with fallback to in-memory storage.
 
 import json
 from datetime import datetime
-from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, Optional
 

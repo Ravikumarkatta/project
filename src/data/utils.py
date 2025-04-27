@@ -2,7 +2,7 @@
 Utility functions for data processing in biblical text analysis.
 """
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import torch
 

@@ -8,7 +8,7 @@ Adjusts text and validation based on denominational preferences.
 import json
 import re  # Ensure re is imported
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Set, Union
 
 # Use get_logger if standardizing, otherwise keep setup_logger
 from src.utils.logger import setup_logger  # Or get_logger

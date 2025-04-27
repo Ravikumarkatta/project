@@ -114,7 +114,7 @@ class AlertingSystem:
             except Exception as e:
                 logger.error(f"Attempt {attempt+1}: Error sending email alert: {e}")
                 time.sleep(2)  # Wait 2 seconds before retrying
-        logger.error(f"Failed to send email alert after 3 attempts.")
+        logger.error("Failed to send email alert after 3 attempts.")
 
     def send_slack_alert(self, message: str) -> None:
         """

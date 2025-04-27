@@ -1,5 +1,4 @@
 # src/model/tests/test_verse_detector.py
-import pytest
 import torch
 
 from src.model.verse_detector import VerseDetector, VerseSegmenter

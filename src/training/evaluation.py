@@ -1,21 +1,16 @@
 # src/training/evaluation.py
 """Advanced evaluation module for Bible-AI with theological and multi-task metrics."""
 import json
-import logging
 import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from queue import Queue
-from threading import Thread
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 from src.data.dataset import BibleDataset
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Script to automatically generate API documentation from docstrings."""
 import inspect
-import os
 from importlib import import_module
 from pathlib import Path
 

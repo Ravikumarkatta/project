@@ -5,9 +5,8 @@ Implements sound biblical interpretation principles.
 """
 
 import json
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from src.utils.logger import get_logger
 

@@ -5,12 +5,10 @@ Provides endpoints for scripture study, theological queries, and model inference
 security, monitoring, and theological validation.
 """
 
-import asyncio
 import json
-import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 import jwt
 import torch

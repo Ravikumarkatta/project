@@ -7,7 +7,7 @@ Metrics are exposed via Prometheus for monitoring and alerting.
 """
 
 import time
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import psutil
 import torch

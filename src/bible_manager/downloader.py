@@ -5,7 +5,6 @@ Downloads Bible translations from configured sources or processes existing files
 """
 
 import json
-import os
 import shutil
 import xml.etree.ElementTree as ET
 import zipfile

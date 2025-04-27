@@ -10,32 +10,18 @@ repos:
     -   id: debug-statements
     -   id: detect-private-key
 
--   repo: https://github.com/psf/black
-    rev: 23.12.1
+# Ruff replaces black, isort, and flake8
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version. Must be kept in sync with installed ruff version in requirements.txt
+    rev: v0.11.7
     hooks:
-    -   id: black
-
--   repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-    -   id: isort
-        args: ["--profile", "black"]
-
--   repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
-    hooks:
-    -   id: flake8
-        additional_dependencies: [flake8-docstrings]
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.8.0 # Consider updating mypy rev and installed version later
     hooks:
     -   id: mypy
-
--   repo: https://github.com/python-poetry/poetry
-    rev: 1.7.1
-    hooks:
-    -   id: poetry-check
-    -   id: poetry-lock
-    -   id: poetry-export
-        args: ["-f", "requirements.txt", "-o", "requirements.txt"]
