@@ -1,0 +1,201 @@
+.
+├── .env.example
+├── .flake8
+├── .gitignore
+├── .pre-commit-config.yaml
+├── LICENSE
+├── README.md
+├── __init__.py
+├── app.py
+├── bible.txt
+├── checklist.md
+├── cli.py
+├── config/
+│   ├── .eslintrc.json
+│   ├── .prettier.json
+│   ├── .stylelintrc.json
+│   ├── README.MD
+│   ├── bible_sources.json
+│   ├── commentary_sources.json
+│   ├── data_config.json
+│   ├── data_config_schema.json
+│   ├── logging_config.json
+│   ├── model_config.json
+│   ├── security_config.json
+│   ├── theological_knowledge_base.json
+│   ├── theological_rules.json
+│   └── training_config.json
+├── create_cross_ref_table.py
+├── data/
+│   ├── bible_storage/
+│   │   ├── 1e391501-d1eb-4ad7-8116-cd769edbef3e.json
+│   │   ├── 2d4db0be-da7c-4cf2-aa0a-65b8ea930c20.json
+│   │   └── index.json
+│   ├── embeddings/
+│   │   └── kjv_embeddings.json
+│   ├── processed/
+│   │   ├── .gitkeep
+│   │   ├── bible.db
+│   │   └── kjv_structured1.json
+│   └── raw/
+│       ├── bibles/
+│       ├── commentaries/
+│       ├── lexicons/
+│       ├── qa_pairs/
+│       └── theological/
+├── deploy/
+│   ├── install_guide.md
+│   ├── monitoring/
+│   │   └── prometheus.yml
+│   ├── nginx/
+│   │   └── bible_ai.conf
+│   ├── requirements_prod.txt
+│   ├── setup_local.py
+│   ├── ssl/
+│   │   ├── renewal.sh
+│   │   └── setup_ssl.sh
+│   └── wsgi.py
+├── docker-compose.yml
+├── Dockerfile
+├── docs/
+│   ├── api/
+│   │   ├── .gitkeep
+│   │   ├── api.md
+│   │   └── endpoints.md
+│   ├── developer_guide/
+│   │   ├── architecture.md
+│   │   ├── contributing.md
+│   │   ├── extending_model.md
+│   │   ├── improvement_roadmap.md
+│   │   └── prioritized_tasks.md
+│   ├── developer_plan.json
+│   ├── theological_basis.md
+│   └── user_guide/
+│       ├── bible_study.md
+│       ├── getting_started.md
+│       └── theological_features.md
+├── downloads/
+├── examples/
+│   └── api_client.py
+├── frontend/
+│   ├── .env.production
+│   ├── .env.staging
+│   ├── build/
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public/
+│   │   ├── assets/
+│   │   ├── favicon.ico
+│   │   └── index.html
+│   ├── src/
+│   │   ├── App.js
+│   │   ├── api.js
+│   │   ├── components/
+│   │   ├── frontend_config.json
+│   │   ├── i18n/
+│   │   ├── index.css
+│   │   ├── index.js
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── state/
+│   │   ├── theme/
+│   │   └── utils/
+│   ├── tests/
+│   │   ├── e2e/
+│   │   └── unit/
+│   └── webpack.config.js
+├── get_schema.py
+├── isolated_verse_test.py
+├── kjv_final.json
+├── kjv_preprocessor.py
+├── kjv_structured_complete.json
+├── logs/
+├── mkdocs.yml
+├── mypy.ini
+├── notebooks/
+│   ├── contextual_analysis.ipynb
+│   ├── data_exploration.ipynb
+│   ├── error_analysis.ipynb
+│   ├── lexicon_analysis.ipynb
+│   ├── model_analysis.ipynb
+│   └── theological_analysis.ipynb
+├── preprocessorchat.py
+├── requirements-dev.txt
+├── requirements.txt
+├── scripts/
+│   ├── benchmark.py
+│   ├── data_migration.py
+│   ├── deploy.sh
+│   ├── evaluate_model.py
+│   ├── generate_api_docs.py
+│   ├── generate_dataset.py
+│   ├── health_check.py
+│   ├── load_bible_data.py
+│   ├── manage_space.py
+│   ├── rollback.sh
+│   ├── security_scan.py
+│   ├── theology_validator.py
+│   ├── verify-deployment.sh
+│   ├── verify-frontend.sh
+│   └── verify_biblical_data.py
+├── setup.py
+├── src/
+│   ├── __init__.py
+│   ├── api/
+│   │   └── server.py
+│   ├── bible_manager/
+│   │   ├── __init__.py
+│   │   ├── bible_handler.py
+│   │   ├── converter.py
+│   │   ├── cross_reference_manager.py
+│   │   ├── downloader.py
+│   │   ├── storage.py
+│   │   ├── uploader.py
+│   │   ├── validator.py
+│   │   └── verse_reference.py
+│   ├── contextual/
+│   │   ├── canonical.py
+│   │   ├── cultural.py
+│   │   ├── historical.py
+│   │   └── literary.py
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── Pipeline.py
+│   │   ├── augmentation.py
+│   │   ├── commentary_collector.py
+│   │   ├── dataset.py
+│   │   └── embedding_pipeline.py
+│   ├── evaluate.py
+│   ├── hermeneutics/
+│   ├── lexicon/
+│   ├── model/
+│   ├── monitoring/
+│   ├── quality/
+│   ├── serve/
+│   ├── theology/
+│   ├── train.py
+│   └── training/
+├── standalone_verse_detector.py
+├── system_packages.txt
+├── test_bible_processor.py
+├── test_standalone_detector.py
+├── test_verse_ref_fix.py
+├── tests/
+│   ├── __init__.py
+│   ├── api/
+│   ├── conftest.py
+│   ├── data/
+│   ├── fixtures/
+│   ├── integration/
+│   ├── performance/
+│   ├── security/
+│   ├── test_api.py
+│   ├── test_data.py
+│   ├── test_dataset.py
+│   ├── test_model.py
+│   ├── test_theological.py
+│   ├── test_verse_reference.py
+│   ├── test_verse_resolver.py
+│   ├── text-utils.py
+│   └── unit/
+└── timeline.md
