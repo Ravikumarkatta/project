@@ -38,7 +38,7 @@
     },
     "storage": {
         "raw_dir": "data/raw/bibles",
-        "processed_dir": "data/processed/bibles",
+        "database_path": "data/processed/bible.db",
         "max_file_size_mb": 100
     }
 }
