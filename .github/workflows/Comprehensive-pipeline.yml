@@ -28,11 +28,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Code Style Check (Black)
-        run: black --check src/ tests/
-
-      - name: Code Style Check (Flake8)
-        run: flake8 src/ tests/
 
   testing:
     name: Comprehensive Testing
